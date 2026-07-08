@@ -18,4 +18,17 @@
     <Page Remove="Zhizhuxia.Desktop.Tests\**" />
     <None Remove="Zhizhuxia.Desktop.Tests\**" />
   </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\package.json"
+          Link="package.json"
+          TargetPath="package.json"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\server\src\**\*"
+          Link="server\src\%(RecursiveDir)%(Filename)%(Extension)"
+          TargetPath="server\src\%(RecursiveDir)%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

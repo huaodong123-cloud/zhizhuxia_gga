@@ -25,6 +25,7 @@ var tests = new List<(string Name, Func<Task> Run)>
     ("SettingsWindow is modern frameless and local settings persist with API key cache", SettingsWindowIsFramelessAndLocalSettingsPersistWithApiKeyCache),
     ("TrayMenuFactory exposes expected commands", TrayMenuFactoryExposesExpectedCommands),
     ("LoginState rejects empty API keys", LoginStateRejectsEmptyApiKeys),
+    ("Desktop publish includes local server files for double-click exe startup", DesktopPublishIncludesLocalServerFilesForDoubleClickStartup),
     ("LocalServerService detects healthy existing server", LocalServerServiceDetectsHealthyServer),
     ("LocalServerService rejects stale non-GLM health responses", LocalServerServiceRejectsStaleHealthResponses),
     ("LocalServerService clears stale port owners before startup", LocalServerServiceClearsStalePortOwnersBeforeStartup),
@@ -421,6 +422,20 @@ static Task LoginStateRejectsEmptyApiKeys()
     Assert(!LoginState.CanEnterChat(""), "empty key accepted");
     Assert(!LoginState.CanEnterChat("   "), "blank key accepted");
     Assert(LoginState.CanEnterChat("sk-test"), "non-empty key rejected");
+    return Task.CompletedTask;
+}
+
+static Task DesktopPublishIncludesLocalServerFilesForDoubleClickStartup()
+{
+    var project = File.ReadAllText(Path.Combine("desktop", "Zhizhuxia.Desktop.csproj"));
+
+    Assert(project.Contains("..\\package.json", StringComparison.Ordinal), "package.json should be copied beside the exe");
+    Assert(project.Contains("..\\server\\src\\**\\*", StringComparison.Ordinal), "server src should be copied beside the exe");
+    Assert(project.Contains("CopyToOutputDirectory", StringComparison.Ordinal), "server files should copy during local build");
+    Assert(project.Contains("CopyToPublishDirectory", StringComparison.Ordinal), "server files should copy during publish");
+    Assert(project.Contains("TargetPath=\"package.json\"", StringComparison.Ordinal), "package.json should publish at the app root");
+    Assert(project.Contains("TargetPath=\"server\\src\\%(RecursiveDir)%(Filename)%(Extension)\"", StringComparison.Ordinal), "server files should publish under server/src");
+
     return Task.CompletedTask;
 }
 
