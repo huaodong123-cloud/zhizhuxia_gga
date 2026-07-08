@@ -1,0 +1,27 @@
+<Window x:Class="Zhizhuxia.Desktop.ScreenshotOverlayWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        KeyDown="Window_KeyDown"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown"
+        MouseMove="Window_MouseMove"
+        MouseLeftButtonUp="Window_MouseLeftButtonUp">
+  <Canvas x:Name="RootCanvas" Background="#66000000">
+    <Border x:Name="SelectionBorder"
+            Visibility="Collapsed"
+            BorderBrush="#D7F8EA"
+            BorderThickness="2"
+            Background="#22D7F8EA" />
+    <TextBlock Text="拖拽选择截图区域，Esc 取消"
+               Canvas.Left="28"
+               Canvas.Top="24"
+               Foreground="#F4F4F4"
+               FontSize="14"
+               FontFamily="Segoe UI, Microsoft YaHei UI" />
+  </Canvas>
+</Window>

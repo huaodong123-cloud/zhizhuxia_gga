@@ -3,7 +3,10 @@ import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { dirname, extname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { PORT } from './config.js';
+import { MODEL_ID, PORT } from './config.js';
+import { createChatResponse } from './chat.js';
+import { runResearchQuery } from './research.js';
+import { rankFromStrongToWeak } from './tools.js';
 import { createGuideRun } from './workflow.js';
 
 export function resolveProjectRoot(moduleUrl) {
@@ -52,7 +55,11 @@ function sendStatic(response, urlPath) {
   createReadStream(filePath).pipe(response);
 }
 
-export function createAppServer() {
+export function createAppServer({
+  chatHandler = createChatResponse,
+  researchHandler = runResearchQuery,
+  rankToolHandler = rankFromStrongToWeak
+} = {}) {
   return createServer(async (request, response) => {
     const url = new URL(request.url, `http://${request.headers.host}`);
 
@@ -67,9 +74,41 @@ export function createAppServer() {
       return;
     }
 
+    if (request.method === 'POST' && url.pathname === '/api/chat') {
+      try {
+        const input = await readJsonBody(request);
+        const chatResponse = await chatHandler(input);
+        sendJson(response, chatResponse.status === 'failed' ? 400 : 200, chatResponse);
+      } catch (error) {
+        sendJson(response, 500, { status: 'failed', errors: [error.message] });
+      }
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/api/research') {
+      try {
+        const input = await readJsonBody(request);
+        sendJson(response, 200, await researchHandler(input));
+      } catch (error) {
+        sendJson(response, 500, { status: 'failed', errors: [error.message] });
+      }
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/api/tools/rank') {
+      try {
+        const input = await readJsonBody(request);
+        const result = await rankToolHandler(input);
+        sendJson(response, result.status === 'failed' ? 400 : 200, result);
+      } catch (error) {
+        sendJson(response, 500, { status: 'failed', errors: [error.message] });
+      }
+      return;
+    }
+
     if (request.method === 'GET' && url.pathname === '/api/health') {
       const pkg = JSON.parse(await readFile(join(rootDir, 'package.json'), 'utf8'));
-      sendJson(response, 200, { ok: true, name: pkg.name });
+      sendJson(response, 200, { ok: true, name: pkg.name, model: MODEL_ID, provider: 'zhipu' });
       return;
     }
 

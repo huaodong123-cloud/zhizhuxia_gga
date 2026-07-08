@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>智助侠桌面原型</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #09090a;
+        --glass: rgba(15, 10, 11, 0.64);
+        --glass-strong: rgba(20, 12, 13, 0.82);
+        --line: rgba(255, 122, 77, 0.22);
+        --line-soft: rgba(255, 255, 255, 0.08);
+        --text: #f5f2ef;
+        --muted: #a9a19e;
+        --hot: #ff7a4d;
+        --hot-soft: rgba(255, 122, 77, 0.16);
+        --blood: #b4141d;
+        --green: #75d9b4;
+        --warn: #f8c66b;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        overflow: hidden;
+        color: var(--text);
+        font-family: "Segoe UI", "Microsoft YaHei UI", sans-serif;
+        background:
+          linear-gradient(135deg, rgba(255, 122, 77, 0.08), transparent 34%),
+          radial-gradient(circle at 80% 16%, rgba(180, 20, 29, 0.18), transparent 28%),
+          radial-gradient(circle at 20% 86%, rgba(117, 217, 180, 0.08), transparent 26%),
+          #0b0b0c;
+      }
+
+      .desktop {
+        position: relative;
+        min-height: 100vh;
+        padding: 28px;
+      }
+
+      .wallpaper-grid {
+        position: absolute;
+        inset: 0;
+        opacity: 0.28;
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+        background-size: 42px 42px;
+        mask-image: linear-gradient(180deg, transparent, #000 18%, #000 82%, transparent);
+      }
+
+      .context-card {
+        position: absolute;
+        left: 54px;
+        top: 48px;
+        width: 350px;
+        padding: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.035);
+        color: rgba(245, 242, 239, 0.7);
+      }
+
+      .context-card h2 {
+        margin: 0 0 10px;
+        font-size: 16px;
+        font-weight: 650;
+      }
+
+      .context-card p {
+        margin: 0;
+        color: rgba(245, 242, 239, 0.46);
+        font-size: 13px;
+        line-height: 1.7;
+      }
+
+      .floating-eye {
+        position: absolute;
+        right: 82px;
+        bottom: 86px;
+        width: 68px;
+        height: 68px;
+        display: grid;
+        place-items: center;
+        border: 1px solid rgba(255, 122, 77, 0.36);
+        border-radius: 20px;
+        background: rgba(10, 4, 5, 0.82);
+        box-shadow:
+          0 18px 60px rgba(0, 0, 0, 0.52),
+          0 0 34px rgba(255, 76, 38, 0.22);
+      }
+
+      .floating-eye img {
+        width: 52px;
+        height: 52px;
+      }
+
+      .hotkey {
+        position: absolute;
+        right: 64px;
+        bottom: 50px;
+        color: rgba(245, 242, 239, 0.42);
+        font-size: 12px;
+      }
+
+      .panel {
+        position: absolute;
+        right: 72px;
+        top: 54px;
+        width: 462px;
+        height: calc(100vh - 108px);
+        min-height: 620px;
+        display: grid;
+        grid-template-rows: auto auto 1fr auto;
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        background: var(--glass);
+        box-shadow:
+          0 28px 100px rgba(0, 0, 0, 0.62),
+          inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(22px);
+        overflow: hidden;
+      }
+
+      .panel::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background:
+          radial-gradient(circle at 70% 0%, rgba(255, 122, 77, 0.14), transparent 30%),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 18%);
+      }
+
+      .topbar,
+      .toolbar,
+      .chat,
+      .composer {
+        position: relative;
+        z-index: 1;
+      }
+
+      .topbar {
+        min-height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--line-soft);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .brand img {
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+      }
+
+      .brand strong,
+      .meta strong {
+        display: block;
+        font-size: 14px;
+        font-weight: 650;
+      }
+
+      .brand span,
+      .meta span {
+        display: block;
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .window-actions {
+        display: flex;
+        gap: 8px;
+      }
+
+      .icon-btn {
+        width: 34px;
+        height: 34px;
+        display: grid;
+        place-items: center;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.045);
+        color: rgba(245, 242, 239, 0.76);
+        font-size: 13px;
+      }
+
+      .toolbar {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--line-soft);
+      }
+
+      .select-like,
+      .input-like {
+        min-height: 42px;
+        display: grid;
+        align-content: center;
+        gap: 3px;
+        padding: 7px 10px;
+        border: 1px solid rgba(255, 255, 255, 0.075);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.045);
+      }
+
+      .label {
+        color: var(--muted);
+        font-size: 10px;
+        text-transform: uppercase;
+      }
+
+      .value {
+        color: var(--text);
+        font-size: 13px;
+      }
+
+      .chat {
+        min-height: 0;
+        overflow: hidden;
+        padding: 18px 16px;
+      }
+
+      .message-list {
+        display: grid;
+        gap: 14px;
+      }
+
+      .message {
+        max-width: 92%;
+        display: grid;
+        gap: 6px;
+      }
+
+      .message.user {
+        justify-self: end;
+      }
+
+      .meta {
+        color: var(--muted);
+      }
+
+      .bubble {
+        padding: 12px 13px;
+        border-radius: 14px;
+        border: 1px solid transparent;
+        color: rgba(245, 242, 239, 0.9);
+        font-size: 13px;
+        line-height: 1.72;
+      }
+
+      .assistant .bubble {
+        background: rgba(255, 255, 255, 0.015);
+      }
+
+      .user .bubble {
+        background: rgba(255, 255, 255, 0.07);
+        border-color: rgba(255, 255, 255, 0.06);
+      }
+
+      .agent-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin-top: 4px;
+      }
+
+      .chip {
+        padding: 5px 8px;
+        border: 1px solid rgba(255, 122, 77, 0.2);
+        border-radius: 999px;
+        background: rgba(255, 122, 77, 0.09);
+        color: rgba(245, 242, 239, 0.76);
+        font-size: 11px;
+      }
+
+      .chip.green {
+        border-color: rgba(117, 217, 180, 0.24);
+        background: rgba(117, 217, 180, 0.08);
+      }
+
+      .source-card {
+        margin-top: 10px;
+        padding: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        background: rgba(0, 0, 0, 0.18);
+      }
+
+      .source-card span {
+        color: var(--hot);
+        font-size: 11px;
+      }
+
+      .source-card p {
+        margin: 4px 0 0;
+        color: rgba(245, 242, 239, 0.72);
+        font-size: 12px;
+        line-height: 1.6;
+      }
+
+      .composer {
+        padding: 14px 16px 16px;
+      }
+
+      .composer-shell {
+        min-height: 58px;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 10px 9px 14px;
+        border: 1px solid rgba(255, 122, 77, 0.2);
+        border-radius: 18px;
+        background: rgba(7, 4, 5, 0.58);
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03), 0 18px 60px rgba(0, 0, 0, 0.32);
+      }
+
+      .placeholder {
+        color: rgba(245, 242, 239, 0.42);
+        font-size: 13px;
+      }
+
+      .send {
+        width: 42px;
+        height: 42px;
+        display: grid;
+        place-items: center;
+        border-radius: 14px;
+        background: var(--hot-soft);
+        color: var(--hot);
+        font-weight: 700;
+      }
+
+      .login-card {
+        position: absolute;
+        left: 54px;
+        bottom: 48px;
+        width: 360px;
+        padding: 18px;
+        border: 1px solid rgba(255, 122, 77, 0.16);
+        border-radius: 20px;
+        background: rgba(15, 10, 11, 0.58);
+        backdrop-filter: blur(18px);
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.44);
+      }
+
+      .login-card h3 {
+        margin: 0 0 6px;
+        font-size: 16px;
+      }
+
+      .login-card p {
+        margin: 0 0 14px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.65;
+      }
+
+      .key-field {
+        min-height: 42px;
+        display: flex;
+        align-items: center;
+        padding: 0 12px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.045);
+        color: rgba(245, 242, 239, 0.38);
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="desktop">
+      <div class="wallpaper-grid"></div>
+
+      <section class="context-card" aria-label="背景上下文">
+        <h2>游戏窗口 / 攻略网页 / 视频旁</h2>
+        <p>智助侠以桌面小工具形式悬浮在当前内容旁边，不抢主应用焦点。默认收起为魔眼入口，需要时展开透明对话框。</p>
+      </section>
+
+      <section class="login-card" aria-label="登录态原型">
+        <h3>首次启动</h3>
+        <p>只输入自己的智谱 API Key。密钥仅保存在当前桌面进程内。</p>
+        <div class="key-field">sk-••••••••••••••••</div>
+      </section>
+
+      <aside class="panel" aria-label="智助侠展开态原型">
+        <header class="topbar">
+          <div class="brand">
+            <img src="../icons/eye-entry-prototype.svg" alt="魔眼入口">
+            <div>
+              <strong>智助侠</strong>
+              <span>Ctrl+Alt+F9 收起 / 唤出</span>
+            </div>
+          </div>
+          <div class="window-actions" aria-label="窗口操作">
+            <div class="icon-btn">⚙</div>
+            <div class="icon-btn">－</div>
+            <div class="icon-btn">×</div>
+          </div>
+        </header>
+
+        <section class="toolbar" aria-label="工具栏">
+          <div class="select-like">
+            <span class="label">Agent</span>
+            <span class="value">总控攻略代理</span>
+          </div>
+          <div class="input-like">
+            <span class="label">Game</span>
+            <span class="value">泰拉瑞亚</span>
+          </div>
+        </section>
+
+        <section class="chat" aria-label="聊天流">
+          <div class="message-list">
+            <article class="message assistant">
+              <div class="meta"><strong>总控攻略代理</strong><span>正在判断是否需要检索</span></div>
+              <div class="bubble">你可以直接描述卡点。我会先判断自己是否了解，再调资料猎手、机制分析、配装建议和战斗教练。</div>
+              <div class="agent-row">
+                <span class="chip green">知识判断: 中</span>
+                <span class="chip">资料猎手待命</span>
+                <span class="chip">质量审查开启</span>
+              </div>
+            </article>
+
+            <article class="message user">
+              <div class="meta"><strong>你</strong></div>
+              <div class="bubble">我现在卡在一个 Boss，装备一般，想知道先刷什么。</div>
+            </article>
+
+            <article class="message assistant">
+              <div class="meta"><strong>机制分析代理</strong><span>输出前经过 harness 检查</span></div>
+              <div class="bubble">先不要硬打。你当前要拆成三件事：抗性、位移空间、爆发窗口。先补移动道具，再刷关键材料，最后再回去试 Boss。</div>
+              <div class="source-card">
+                <span>来源卡片 · Bilibili 优先</span>
+                <p>如果问题依赖版本信息，资料猎手会优先找 B 站，再查小黑盒，并把不确定性标出来。</p>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <footer class="composer">
+          <div class="composer-shell">
+            <span class="placeholder">问 Boss 打法、配装、路线或资源规划...</span>
+            <span class="send">↗</span>
+          </div>
+        </footer>
+      </aside>
+
+      <div class="floating-eye" aria-label="收起态魔眼入口">
+        <img src="../icons/eye-entry-prototype.svg" alt="魔眼入口">
+      </div>
+      <div class="hotkey">点击入口或按 Ctrl+Alt+F9</div>
+    </main>
+  </body>
+</html>

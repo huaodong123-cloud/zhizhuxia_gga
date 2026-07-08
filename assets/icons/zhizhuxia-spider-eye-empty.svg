@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 320" role="img" aria-label="Zhizhuxia angular empty eye logo">
+  <defs>
+    <linearGradient id="edge" x1="74" y1="260" x2="438" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#e9f3ff"/>
+      <stop offset="0.42" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#9fb7d3"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="58" y1="276" x2="454" y2="38" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0a0d12"/>
+      <stop offset="0.55" stop-color="#151b24"/>
+      <stop offset="1" stop-color="#02040a"/>
+    </linearGradient>
+  </defs>
+  <path
+    d="M46 259C105 134 214 58 425 36C389 141 312 233 176 292C118 317 72 303 46 259Z
+       M94 244C144 149 232 91 366 69C338 145 272 210 174 256C136 274 109 268 94 244Z"
+    fill="url(#rim)"
+    fill-rule="evenodd"/>
+  <path
+    d="M94 244C144 149 232 91 366 69C338 145 272 210 174 256C136 274 109 268 94 244Z
+       M121 232C169 156 242 111 333 91C300 150 244 201 174 237C150 249 133 248 121 232Z"
+    fill="url(#edge)"
+    fill-rule="evenodd"/>
+  <path
+    d="M145 218C187 164 244 130 303 111"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="6"
+    stroke-linecap="round"
+    opacity="0.34"/>
+</svg>

@@ -1,0 +1,40 @@
+<Viewbox xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+         Width="56"
+         Height="56"
+         Stretch="Uniform">
+  <Grid Width="256" Height="256">
+    <Border Width="216"
+            Height="216"
+            CornerRadius="52"
+            Background="#F0050203"
+            BorderBrush="#29FF6A48"
+            BorderThickness="1"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center" />
+    <Path Data="M36 128C60 78 92 56 128 56s68 22 92 72c-24 50-56 72-92 72s-68-22-92-72Z"
+          Fill="#3A1718"
+          Stroke="#FF7A4D"
+          StrokeThickness="7"
+          StrokeLineJoin="Round" />
+    <Path Data="M56 128C75 94 99 80 128 80s53 14 72 48c-19 34-43 48-72 48s-53-14-72-48Z"
+          Fill="#8F0A0304" />
+    <Path Data="M61 119c18 3 30 8 42 18 M195 119c-18 3-30 8-42 18 M79 94c18 16 29 25 37 43 M177 94c-18 16-29 25-37 43 M83 163c15-13 25-21 39-27 M173 163c-15-13-25-21-39-27"
+          Fill="Transparent"
+          Stroke="#B4141D"
+          StrokeThickness="4"
+          StrokeStartLineCap="Round"
+          StrokeEndLineCap="Round"
+          Opacity="0.78" />
+    <Ellipse Width="90" Height="90" Fill="#D7412E" />
+    <Ellipse Width="68" Height="68" Fill="#74131A" />
+    <Ellipse Width="38" Height="38" Fill="#080303" />
+    <Path Data="M128 84v29 M128 143v29 M84 128h29 M143 128h29 M97 97l21 21 M159 97l-21 21 M97 159l21-21 M159 159l-21-21"
+          Fill="Transparent"
+          Stroke="#66160306"
+          StrokeThickness="3"
+          StrokeStartLineCap="Round"
+          StrokeEndLineCap="Round" />
+    <Ellipse Width="14" Height="14" Fill="#CCFFF8EA" Margin="38,-42,0,0" />
+    <Ellipse Width="8" Height="8" Fill="#55FFB562" Margin="-28,34,0,0" />
+  </Grid>
+</Viewbox>

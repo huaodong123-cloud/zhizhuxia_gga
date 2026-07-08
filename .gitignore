@@ -1,0 +1,7 @@
+node_modules/
+desktop/**/bin/
+desktop/**/obj/
+.idea/
+skill-staging/
+dist/*
+!dist/zhizhuxia-demov0.01-concept-win.zip

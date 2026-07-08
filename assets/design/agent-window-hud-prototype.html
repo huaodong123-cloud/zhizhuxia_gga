@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>智助侠 Agent 窗口 HUD 原型</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --ink: rgba(248, 250, 252, 0.94);
+        --muted: rgba(202, 213, 225, 0.62);
+        --dim: rgba(148, 163, 184, 0.42);
+        --panel: rgba(5, 8, 12, 0.34);
+        --panel-strong: rgba(5, 8, 12, 0.48);
+        --line: rgba(255, 255, 255, 0.13);
+        --line-soft: rgba(255, 255, 255, 0.07);
+        --red: #ff334d;
+        --cyan: #79f2dc;
+        --warning: #ffc66d;
+        --shadow: rgba(0, 0, 0, 0.42);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--ink);
+        font-family: "Segoe UI", "Microsoft YaHei UI", sans-serif;
+        background:
+          radial-gradient(circle at 18% 18%, rgba(94, 160, 255, 0.22), transparent 26%),
+          radial-gradient(circle at 78% 38%, rgba(255, 51, 77, 0.16), transparent 24%),
+          linear-gradient(135deg, #0f171e, #05070b 56%, #15100d);
+      }
+
+      .stage {
+        min-height: 100vh;
+        padding: 26px;
+        display: grid;
+        grid-template-columns: minmax(720px, 1fr) 360px;
+        gap: 24px;
+      }
+
+      .game {
+        position: relative;
+        min-height: 720px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 18px;
+        background:
+          linear-gradient(180deg, rgba(4, 8, 13, 0.12), rgba(2, 4, 7, 0.78)),
+          radial-gradient(circle at 44% 40%, rgba(121, 242, 220, 0.08), transparent 24%),
+          linear-gradient(145deg, #142633, #0b1017 54%, #17120f);
+        box-shadow: 0 28px 90px var(--shadow);
+      }
+
+      .terrain {
+        position: absolute;
+        inset: auto -3% -5% -3%;
+        height: 38%;
+        background: linear-gradient(12deg, #101913, #1b251a 46%, #0b0d0c);
+        clip-path: polygon(0 34%, 12% 22%, 25% 36%, 38% 18%, 52% 31%, 66% 14%, 80% 29%, 100% 17%, 100% 100%, 0 100%);
+      }
+
+      .hud-bars {
+        position: absolute;
+        left: 24px;
+        top: 22px;
+        width: 232px;
+        display: grid;
+        gap: 9px;
+        opacity: 0.75;
+      }
+
+      .bar {
+        height: 10px;
+        border-radius: 99px;
+        background: rgba(255, 255, 255, 0.08);
+        overflow: hidden;
+      }
+
+      .bar::before {
+        content: "";
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+      }
+
+      .hp::before {
+        width: 72%;
+        background: linear-gradient(90deg, #ff4d5f, #ff9b7c);
+      }
+
+      .energy::before {
+        width: 48%;
+        background: linear-gradient(90deg, #79f2dc, #86c8ff);
+      }
+
+      .boss {
+        position: absolute;
+        left: 50%;
+        top: 56px;
+        width: min(420px, 52%);
+        transform: translateX(-50%);
+        opacity: 0.72;
+      }
+
+      .boss-label {
+        display: flex;
+        justify-content: space-between;
+        color: rgba(255, 255, 255, 0.76);
+        font-size: 12px;
+        margin-bottom: 8px;
+      }
+
+      .boss .bar::before {
+        width: 61%;
+        background: linear-gradient(90deg, #7a1827, #ff334d);
+      }
+
+      .eye-entry {
+        position: absolute;
+        right: 18px;
+        top: 46%;
+        width: 54px;
+        height: 38px;
+        opacity: 0.62;
+        filter: drop-shadow(0 0 16px rgba(255, 51, 77, 0.22));
+      }
+
+      .eye-entry svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      .agent {
+        position: absolute;
+        right: 84px;
+        top: 118px;
+        width: 390px;
+        min-height: 512px;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        border-radius: 18px;
+        background: linear-gradient(180deg, rgba(5, 8, 12, 0.46), rgba(5, 8, 12, 0.26));
+        border: 1px solid var(--line-soft);
+        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.22);
+        backdrop-filter: blur(16px) saturate(1.2);
+      }
+
+      .agent::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        border-radius: inherit;
+        background:
+          linear-gradient(90deg, rgba(255, 51, 77, 0.22), transparent 18%),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 32%);
+        opacity: 0.7;
+      }
+
+      .agent-top {
+        position: relative;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        gap: 12px;
+        min-height: 50px;
+        padding: 10px 12px 8px 14px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      }
+
+      .agent-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .mini-eye {
+        width: 28px;
+        height: 19px;
+        flex: 0 0 auto;
+      }
+
+      .agent-title strong {
+        display: block;
+        font-size: 13px;
+        line-height: 1.1;
+        font-weight: 650;
+      }
+
+      .agent-title span {
+        display: block;
+        margin-top: 3px;
+        color: var(--dim);
+        font-size: 10px;
+      }
+
+      .pills {
+        display: flex;
+        gap: 6px;
+      }
+
+      .pill {
+        height: 25px;
+        padding: 0 8px;
+        display: inline-flex;
+        align-items: center;
+        border-radius: 99px;
+        color: rgba(255, 255, 255, 0.72);
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        font-size: 10px;
+      }
+
+      .feed {
+        position: relative;
+        padding: 16px 14px 10px;
+        display: grid;
+        align-content: end;
+        gap: 12px;
+      }
+
+      .message {
+        max-width: 92%;
+        padding: 10px 11px;
+        border-radius: 12px;
+        color: rgba(255, 255, 255, 0.88);
+        font-size: 13px;
+        line-height: 1.55;
+      }
+
+      .message.agent-msg {
+        background: rgba(0, 0, 0, 0.12);
+        border-left: 2px solid rgba(121, 242, 220, 0.56);
+      }
+
+      .message.user-msg {
+        justify-self: end;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+      }
+
+      .workflow {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 8px;
+      }
+
+      .workflow span {
+        padding: 4px 7px;
+        border-radius: 99px;
+        color: rgba(255, 255, 255, 0.72);
+        background: rgba(121, 242, 220, 0.08);
+        border: 1px solid rgba(121, 242, 220, 0.18);
+        font-size: 10px;
+      }
+
+      .composer {
+        position: relative;
+        margin: 0 12px 12px;
+        padding: 7px;
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: end;
+        gap: 8px;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.065);
+        border: 1px solid rgba(255, 255, 255, 0.10);
+      }
+
+      .icon-btn,
+      .send-btn {
+        border: 0;
+        color: var(--ink);
+        font: inherit;
+        cursor: default;
+      }
+
+      .icon-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 12px;
+        background: rgba(0, 0, 0, 0.18);
+      }
+
+      .input {
+        min-height: 38px;
+        padding: 9px 2px;
+        color: rgba(255, 255, 255, 0.58);
+        font-size: 13px;
+      }
+
+      .send-btn {
+        height: 36px;
+        padding: 0 13px;
+        border-radius: 12px;
+        color: #08100e;
+        background: rgba(121, 242, 220, 0.86);
+        font-weight: 650;
+      }
+
+      .callout {
+        position: absolute;
+        width: 230px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        color: rgba(255, 255, 255, 0.78);
+        background: rgba(4, 6, 10, 0.66);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        backdrop-filter: blur(10px);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .callout strong {
+        display: block;
+        color: var(--ink);
+        margin-bottom: 4px;
+      }
+
+      .c1 {
+        right: 512px;
+        top: 140px;
+      }
+
+      .c2 {
+        right: 512px;
+        top: 382px;
+      }
+
+      .c3 {
+        right: 18px;
+        bottom: 36px;
+      }
+
+      .notes {
+        display: grid;
+        align-content: start;
+        gap: 14px;
+      }
+
+      .note {
+        padding: 16px;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.055);
+        border: 1px solid rgba(255, 255, 255, 0.10);
+      }
+
+      .note h2,
+      .note h3 {
+        margin: 0 0 10px;
+        font-size: 17px;
+      }
+
+      .note h3 {
+        font-size: 14px;
+      }
+
+      .note p,
+      .note li {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.65;
+      }
+
+      .note p {
+        margin: 0;
+      }
+
+      .note ul {
+        margin: 0;
+        padding-left: 18px;
+      }
+
+      .swatches {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+      }
+
+      .swatch {
+        height: 42px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+      }
+
+      @media (max-width: 1100px) {
+        .stage {
+          grid-template-columns: 1fr;
+        }
+
+        .game {
+          min-height: 680px;
+        }
+
+        .agent {
+          right: 28px;
+          width: min(390px, calc(100% - 56px));
+        }
+
+        .callout {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="stage">
+      <section class="game" aria-label="游戏内 Agent 窗口原型">
+        <div class="hud-bars">
+          <div class="bar hp"></div>
+          <div class="bar energy"></div>
+        </div>
+
+        <div class="boss">
+          <div class="boss-label"><span>首领目标</span><span>61%</span></div>
+          <div class="bar"></div>
+        </div>
+
+        <div class="terrain"></div>
+
+        <div class="eye-entry" title="收起态入口">
+          <svg viewBox="0 0 120 84" aria-hidden="true">
+            <path d="M8 43 C26 9 68 2 112 13 C95 50 59 78 17 76 C10 65 6 54 8 43 Z"
+                  fill="none" stroke="rgba(255,255,255,.74)" stroke-width="7" stroke-linejoin="round" />
+            <path d="M22 45 C38 24 67 17 96 22 C82 47 56 62 29 62"
+                  fill="none" stroke="rgba(255,51,77,.78)" stroke-width="4" stroke-linecap="round" />
+          </svg>
+        </div>
+
+        <section class="agent">
+          <header class="agent-top">
+            <div class="agent-title">
+              <svg class="mini-eye" viewBox="0 0 120 84" aria-hidden="true">
+                <path d="M8 43 C26 9 68 2 112 13 C95 50 59 78 17 76 C10 65 6 54 8 43 Z"
+                      fill="none" stroke="rgba(255,255,255,.74)" stroke-width="8" stroke-linejoin="round" />
+              </svg>
+              <div>
+                <strong>智助侠 Agent</strong>
+                <span>Ctrl+Alt+F9 · HUD 模式</span>
+              </div>
+            </div>
+            <div class="pills">
+              <span class="pill">总控</span>
+              <span class="pill">原神</span>
+            </div>
+          </header>
+
+          <div class="feed">
+            <div class="message agent-msg">
+              识别到这是截图问题。先读画面资源，再按 B站 -> 小黑盒检索，最后用 GLM-5.2 给你结论。
+              <div class="workflow">
+                <span>意图</span>
+                <span>视觉</span>
+                <span>搜索</span>
+                <span>回复</span>
+              </div>
+            </div>
+            <div class="message user-msg">这套配装现在能不能打过？</div>
+            <div class="message agent-msg">可以打，但容错偏低。先把抗性位补到 2 件套，再进本，输出手法不要抢第三段。</div>
+          </div>
+
+          <div class="composer">
+            <button class="icon-btn">□</button>
+            <div class="input">输入问题，或 Ctrl+Alt+F10 截图...</div>
+            <button class="send-btn">发送</button>
+          </div>
+        </section>
+
+        <aside class="callout c1">
+          <strong>顶部改法</strong>
+          不做厚标题栏。Agent/Game 用小胶囊展示，默认不抢视觉。
+        </aside>
+        <aside class="callout c2">
+          <strong>主体改法</strong>
+          消息区域透明，助手消息只用细边标识，不做一张张厚卡片。
+        </aside>
+        <aside class="callout c3">
+          <strong>输入改法</strong>
+          输入框贴底悬浮，截图按钮保留，但整体像 HUD 控件。
+        </aside>
+      </section>
+
+      <aside class="notes">
+        <section class="note">
+          <h2>Agent 窗口新方向</h2>
+          <p>它应该像游戏 HUD 上的一层轻提示，而不是普通聊天软件窗口。重点是透明、贴边、低干扰、能快速看懂状态。</p>
+        </section>
+
+        <section class="note">
+          <h3>要改掉的旧问题</h3>
+          <ul>
+            <li>外框太厚，窗口感太强。</li>
+            <li>Agent/Game 表单区像后台系统。</li>
+            <li>消息卡片太实，遮挡游戏画面。</li>
+            <li>顶部标题栏占空间，视觉权重过高。</li>
+          </ul>
+        </section>
+
+        <section class="note">
+          <h3>落 WPF 的规则</h3>
+          <ul>
+            <li>主面板透明度约 34% 到 48%。</li>
+            <li>边框只保留 1px 弱线，不用厚色块。</li>
+            <li>Agent/Game 改成紧凑胶囊或窄下拉。</li>
+            <li>设置只从托盘进，窗口内不放设置按钮。</li>
+          </ul>
+        </section>
+
+        <section class="note">
+          <h3>颜色</h3>
+          <div class="swatches">
+            <div class="swatch" style="background:#05080c"></div>
+            <div class="swatch" style="background:#ff334d"></div>
+            <div class="swatch" style="background:#79f2dc"></div>
+            <div class="swatch" style="background:rgba(255,255,255,.14)"></div>
+          </div>
+        </section>
+      </aside>
+    </main>
+  </body>
+</html>

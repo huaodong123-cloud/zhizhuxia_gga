@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>智助侠视觉模型架构图</title>
+  <style>
+    body {
+      margin: 0;
+      background: #020617;
+      color: #e2e8f0;
+      font-family: Consolas, "Microsoft YaHei", monospace;
+    }
+    .container {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 28px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 22px;
+      letter-spacing: 0;
+    }
+    p {
+      margin: 0 0 20px;
+      color: #94a3b8;
+      font-size: 13px;
+    }
+    .panel {
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      background: #0f172a;
+      overflow: hidden;
+    }
+    svg {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 14px;
+    }
+    .card {
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 14px;
+      background: #0f172a;
+      min-height: 86px;
+    }
+    .card h2 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      color: #f8fafc;
+    }
+    .card div {
+      color: #94a3b8;
+      font-size: 12px;
+      line-height: 1.7;
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>智助侠视觉模型架构图</h1>
+    <p>桌面眼睛入口、WPF 原生聊天壳、Node 本地服务与可扩展模型能力的边界。</p>
+    <section class="panel">
+      <svg viewBox="0 0 1100 640" role="img" aria-label="智助侠视觉模型架构">
+        <defs>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+          </pattern>
+          <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#64748b"/>
+          </marker>
+        </defs>
+        <rect width="1100" height="640" fill="#020617"/>
+        <rect width="1100" height="640" fill="url(#grid)" opacity="0.55"/>
+
+        <path d="M220 210 L340 210" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)"/>
+        <path d="M520 210 L650 210" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)"/>
+        <path d="M820 185 L930 140" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)"/>
+        <path d="M820 235 L930 315" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)"/>
+        <path d="M495 365 L650 270" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+        <rect x="60" y="130" width="160" height="160" rx="8" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="140" y="178" fill="#f8fafc" font-size="14" font-weight="700" text-anchor="middle">眼睛悬浮入口</text>
+        <text x="140" y="205" fill="#94a3b8" font-size="10" text-anchor="middle">Ctrl+Alt+G 唤出</text>
+        <text x="140" y="225" fill="#94a3b8" font-size="10" text-anchor="middle">透明输入/深邃 Logo</text>
+        <path d="M90 248 C118 218, 162 218, 190 248 C162 278, 118 278, 90 248 Z" fill="none" stroke="#22d3ee" stroke-width="3"/>
+        <circle cx="140" cy="248" r="20" fill="#020617" stroke="#a78bfa" stroke-width="3"/>
+        <circle cx="140" cy="248" r="8" fill="#22d3ee"/>
+
+        <rect x="340" y="120" width="180" height="180" rx="8" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="430" y="170" fill="#f8fafc" font-size="14" font-weight="700" text-anchor="middle">WPF 原生壳</text>
+        <text x="430" y="198" fill="#94a3b8" font-size="10" text-anchor="middle">登录 / 聊天 / 设置</text>
+        <text x="430" y="218" fill="#94a3b8" font-size="10" text-anchor="middle">API Key 仅内存保存</text>
+        <text x="430" y="238" fill="#94a3b8" font-size="10" text-anchor="middle">modelId + images 请求</text>
+
+        <rect x="650" y="110" width="170" height="200" rx="8" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="735" y="160" fill="#f8fafc" font-size="14" font-weight="700" text-anchor="middle">Node 本地服务</text>
+        <text x="735" y="188" fill="#94a3b8" font-size="10" text-anchor="middle">POST /api/chat</text>
+        <text x="735" y="208" fill="#94a3b8" font-size="10" text-anchor="middle">Agent 工作流</text>
+        <text x="735" y="228" fill="#94a3b8" font-size="10" text-anchor="middle">来源卡片 / Harness</text>
+        <text x="735" y="248" fill="#94a3b8" font-size="10" text-anchor="middle">模型能力校验</text>
+
+        <rect x="930" y="80" width="135" height="120" rx="8" fill="rgba(30, 41, 59, 0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="997" y="123" fill="#f8fafc" font-size="13" font-weight="700" text-anchor="middle">文本模型</text>
+        <text x="997" y="150" fill="#94a3b8" font-size="9" text-anchor="middle">DeepSeek</text>
+        <text x="997" y="169" fill="#94a3b8" font-size="9" text-anchor="middle">vision=false</text>
+
+        <rect x="930" y="280" width="135" height="125" rx="8" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="997" y="323" fill="#f8fafc" font-size="13" font-weight="700" text-anchor="middle">视觉模型</text>
+        <text x="997" y="350" fill="#94a3b8" font-size="9" text-anchor="middle">可替换 Provider</text>
+        <text x="997" y="369" fill="#94a3b8" font-size="9" text-anchor="middle">vision=true</text>
+
+        <rect x="315" y="365" width="180" height="125" rx="8" fill="rgba(136, 19, 55, 0.4)" stroke="#fb7185" stroke-width="1.5" stroke-dasharray="5,5"/>
+        <text x="405" y="408" fill="#f8fafc" font-size="13" font-weight="700" text-anchor="middle">隐私边界</text>
+        <text x="405" y="435" fill="#fda4af" font-size="9" text-anchor="middle">密钥不落盘</text>
+        <text x="405" y="454" fill="#fda4af" font-size="9" text-anchor="middle">不向绘图 MCP 发送源码</text>
+      </svg>
+    </section>
+    <section class="summary">
+      <div class="card">
+        <h2>模型选择</h2>
+        <div>客户端传入 modelId；服务端模型目录决定 provider 和 vision 能力。</div>
+      </div>
+      <div class="card">
+        <h2>视觉输入</h2>
+        <div>图片只在 vision=true 的模型中进入多模态消息；文本模型直接返回清晰错误。</div>
+      </div>
+      <div class="card">
+        <h2>可演进</h2>
+        <div>后续接入 OpenAI、Figma MCP 或本地绘图工具时，不改 Agent 主流程。</div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

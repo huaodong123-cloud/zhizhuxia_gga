@@ -1,17 +1,25 @@
 # Game Guide Agent Lab
 
-A small multi-agent workflow demo for game guides. The side-panel frontend asks the user for a DeepSeek API key and game situation, then shows a mock run with research, state analysis, build planning, route planning, combat advice, critique, synthesis, and harness scoring.
+A small multi-agent workflow demo for game guides. The primary frontend is now a Windows native desktop tool named 智助侠. It opens as a compact WPF floating window, keeps the 智谱 API key in memory only, and calls the local Node backend for chat, vision analysis, research, specialist agents, and harness warnings.
 
-The scaffold locks the model id to `deepseek-v4`, but does not call DeepSeek yet. The backend keeps the model id and API key flow in place so a real provider adapter can be added later.
+The desktop shell registers `Ctrl+Alt+F9` as the default global hotkey to show or hide the tool and `Ctrl+Alt+F10` for region screenshots. The existing static web UI remains in the repository as a debug surface, but it is no longer the main product entry.
 
 ## Run
+
+Desktop tool:
+
+```powershell
+dotnet run --project desktop/Zhizhuxia.Desktop.csproj
+```
+
+Backend and tests:
 
 ```powershell
 npm test
 npm start
 ```
 
-Open:
+Optional web debug surface:
 
 ```text
 http://localhost:5177
@@ -21,10 +29,19 @@ http://localhost:5177
 
 ```text
 game-guide-agent-lab/
+  desktop/
+    Services/
+      ChatApiClient.cs
+      HotkeyService.cs
+      LocalServerService.cs
+    Zhizhuxia.Desktop.csproj
+    MainWindow.xaml
   server/
     src/
+      chat.js
       config.js
       harness.js
+      research.js
       server.js
       validation.js
       workflow.js
@@ -40,9 +57,10 @@ game-guide-agent-lab/
 
 ## Current Scope
 
-- User enters API key in the side tool.
-- API key is used for request validation but is not stored.
-- Model id is fixed as `deepseek-v4`.
-- Workflow is visible and completed with mock agent outputs.
-- Harness validates structure and scores the final guide.
-- Real live research and DeepSeek calls are intentionally left for the next implementation step.
+- User enters the API key in the Windows desktop tool.
+- API key is kept in WPF process memory only and is not written to disk.
+- 智谱 GLM-5.2 handles both text answers and screenshot vision analysis.
+- The desktop window is topmost and can be shown or hidden with `Ctrl+Alt+F9`.
+- The WPF UI is native XAML, not WebView2 and not Electron.
+- The local Node backend still owns chat orchestration, research adapters, model calls, and harness checks.
+- The desktop shell starts the local backend when it is not already running.

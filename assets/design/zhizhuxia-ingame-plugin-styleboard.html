@@ -1,0 +1,753 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>智助侠游戏内透明插件示意图</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #050608;
+        --ink: #f7f8fb;
+        --muted: #9aa3b2;
+        --line: rgba(255, 255, 255, 0.13);
+        --glass: rgba(7, 8, 11, 0.32);
+        --glass-strong: rgba(10, 12, 16, 0.62);
+        --red: #e72e43;
+        --red-soft: rgba(231, 46, 67, 0.16);
+        --green: #66e2b0;
+        --green-soft: rgba(102, 226, 176, 0.13);
+        --blue: #86c8ff;
+        --shadow: rgba(0, 0, 0, 0.48);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--ink);
+        font-family: "Segoe UI", "Microsoft YaHei UI", sans-serif;
+        background: var(--bg);
+      }
+
+      .board {
+        min-height: 100vh;
+        padding: 28px;
+        display: grid;
+        grid-template-columns: minmax(760px, 1fr) 420px;
+        gap: 24px;
+      }
+
+      .game {
+        position: relative;
+        min-height: 720px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 18px;
+        background:
+          linear-gradient(180deg, rgba(9, 12, 18, 0.16), rgba(3, 5, 8, 0.7)),
+          radial-gradient(circle at 18% 22%, rgba(120, 190, 255, 0.22), transparent 22%),
+          radial-gradient(circle at 70% 34%, rgba(231, 46, 67, 0.16), transparent 25%),
+          linear-gradient(135deg, #14212a, #0c1014 44%, #15100e);
+        box-shadow: 0 30px 100px var(--shadow);
+      }
+
+      .terrain {
+        position: absolute;
+        inset: auto -4% -8% -4%;
+        height: 42%;
+        background:
+          linear-gradient(160deg, transparent 14%, rgba(0, 0, 0, 0.35) 15% 16%, transparent 17%),
+          linear-gradient(10deg, #1d2b20, #18201a 48%, #0d1110);
+        clip-path: polygon(0 34%, 13% 24%, 24% 38%, 38% 18%, 50% 28%, 63% 12%, 78% 32%, 100% 18%, 100% 100%, 0 100%);
+      }
+
+      .hud {
+        position: absolute;
+        left: 24px;
+        top: 24px;
+        display: grid;
+        gap: 10px;
+        opacity: 0.86;
+      }
+
+      .hp,
+      .stamina {
+        width: 220px;
+        height: 12px;
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.34);
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .hp::before,
+      .stamina::before {
+        content: "";
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+      }
+
+      .hp::before {
+        width: 68%;
+        background: linear-gradient(90deg, #b81425, #ff5267);
+      }
+
+      .stamina::before {
+        width: 46%;
+        background: linear-gradient(90deg, #c8a857, #f4d884);
+      }
+
+      .boss {
+        position: absolute;
+        left: 50%;
+        bottom: 165px;
+        width: 128px;
+        height: 168px;
+        transform: translateX(-50%);
+        border-radius: 42% 42% 20% 20%;
+        background: linear-gradient(180deg, rgba(99, 18, 24, 0.92), rgba(28, 7, 9, 0.98));
+        box-shadow: 0 0 48px rgba(231, 46, 67, 0.26);
+      }
+
+      .boss::before,
+      .boss::after {
+        content: "";
+        position: absolute;
+        top: 42px;
+        width: 26px;
+        height: 16px;
+        border-radius: 999px;
+        background: #f8f4ee;
+      }
+
+      .boss::before {
+        left: 28px;
+        transform: rotate(18deg);
+      }
+
+      .boss::after {
+        right: 28px;
+        transform: rotate(-18deg);
+      }
+
+      .player {
+        position: absolute;
+        left: 37%;
+        bottom: 148px;
+        width: 44px;
+        height: 82px;
+        border-radius: 24px 24px 12px 12px;
+        background: linear-gradient(180deg, #cfe5ff, #4f86ad);
+        box-shadow: 0 0 30px rgba(134, 200, 255, 0.28);
+      }
+
+      .eye-entry {
+        position: absolute;
+        right: 26px;
+        top: 46%;
+        width: 72px;
+        height: 72px;
+        display: grid;
+        place-items: center;
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        border-radius: 22px;
+        background: rgba(3, 4, 7, 0.18);
+        backdrop-filter: blur(8px);
+      }
+
+      .eye-entry img {
+        width: 58px;
+        opacity: 0.72;
+      }
+
+      .plugin {
+        position: absolute;
+        right: 104px;
+        top: 62px;
+        width: 392px;
+        min-height: 548px;
+        display: grid;
+        grid-template-rows: auto auto 1fr auto;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 18px;
+        background: var(--glass);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 20px 70px rgba(0, 0, 0, 0.32);
+        overflow: hidden;
+      }
+
+      .plugin header {
+        padding: 13px 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .brand img {
+        width: 38px;
+      }
+
+      .brand strong,
+      .tray-title,
+      .settings h2 {
+        display: block;
+        font-size: 14px;
+        font-weight: 650;
+      }
+
+      .brand span,
+      .micro,
+      .note {
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .status {
+        display: flex;
+        gap: 7px;
+        align-items: center;
+        color: var(--green);
+        font-size: 11px;
+      }
+
+      .status::before {
+        content: "";
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--green);
+        box-shadow: 0 0 18px rgba(102, 226, 176, 0.8);
+      }
+
+      .toolbar {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 9px;
+        padding: 11px 14px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+      }
+
+      .field {
+        min-height: 40px;
+        padding: 7px 9px;
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.024);
+      }
+
+      .label {
+        display: block;
+        margin-bottom: 2px;
+        color: var(--muted);
+        font-size: 10px;
+        text-transform: uppercase;
+      }
+
+      .value {
+        font-size: 12px;
+      }
+
+      .chat {
+        padding: 13px 14px;
+        display: grid;
+        align-content: start;
+        gap: 12px;
+      }
+
+      .bubble {
+        max-width: 92%;
+        padding: 10px 11px;
+        border-radius: 13px;
+        border: 1px solid rgba(255, 255, 255, 0.045);
+        background: rgba(0, 0, 0, 0.12);
+        font-size: 12px;
+        line-height: 1.62;
+      }
+
+      .bubble.user {
+        justify-self: end;
+        background: rgba(255, 255, 255, 0.052);
+      }
+
+      .workflow {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px;
+        margin-top: 2px;
+      }
+
+      .step {
+        min-height: 44px;
+        padding: 7px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 9px;
+        background: rgba(0, 0, 0, 0.1);
+        color: var(--muted);
+        font-size: 10px;
+      }
+
+      .step.done {
+        color: var(--green);
+        border-color: rgba(102, 226, 176, 0.24);
+        background: rgba(102, 226, 176, 0.085);
+      }
+
+      .composer {
+        padding: 12px 14px 14px;
+      }
+
+      .input {
+        min-height: 52px;
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 8px;
+        align-items: center;
+        padding: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        border-radius: 14px;
+        background: rgba(0, 0, 0, 0.18);
+      }
+
+      .btn {
+        height: 36px;
+        min-width: 52px;
+        display: grid;
+        place-items: center;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.045);
+        color: var(--ink);
+        font-size: 12px;
+      }
+
+      .btn.red {
+        border-color: rgba(231, 46, 67, 0.36);
+        background: var(--red-soft);
+        color: #ffbac3;
+      }
+
+      .placeholder {
+        color: rgba(247, 248, 251, 0.42);
+        font-size: 12px;
+      }
+
+      .capture-layer {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: rgba(0, 0, 0, 0.18);
+      }
+
+      .capture-box {
+        position: absolute;
+        left: 205px;
+        top: 160px;
+        width: 330px;
+        height: 222px;
+        border: 2px solid rgba(231, 46, 67, 0.88);
+        background: rgba(231, 46, 67, 0.06);
+        box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.28);
+      }
+
+      .capture-label {
+        position: absolute;
+        left: 205px;
+        top: 390px;
+        color: #ffd4da;
+        font-size: 12px;
+      }
+
+      .callout {
+        position: absolute;
+        padding: 8px 10px;
+        border: 1px solid rgba(255, 255, 255, 0.11);
+        border-radius: 10px;
+        background: rgba(6, 7, 10, 0.64);
+        backdrop-filter: blur(12px);
+        color: rgba(247, 248, 251, 0.86);
+        font-size: 11px;
+        line-height: 1.5;
+      }
+
+      .callout b {
+        color: var(--red);
+      }
+
+      .c1 { right: 28px; top: 270px; width: 172px; }
+      .c2 { right: 520px; top: 58px; width: 210px; }
+      .c3 { left: 210px; top: 420px; width: 220px; }
+
+      .sidebar {
+        display: grid;
+        gap: 18px;
+      }
+
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--glass-strong);
+        box-shadow: 0 20px 70px rgba(0, 0, 0, 0.3);
+        overflow: hidden;
+      }
+
+      .card h1,
+      .card h2 {
+        margin: 0;
+      }
+
+      .card-head {
+        padding: 18px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .card-head h1 {
+        font-size: 20px;
+      }
+
+      .card-head p {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.7;
+      }
+
+      .tray {
+        padding: 18px;
+      }
+
+      .taskbar-wrap {
+        position: relative;
+        padding-top: 98px;
+      }
+
+      .overflow {
+        position: absolute;
+        right: 36px;
+        top: 0;
+        width: 210px;
+        padding: 12px;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 12px;
+        background: rgba(20, 22, 28, 0.96);
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.36);
+      }
+
+      .taskbar {
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        padding: 0 10px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.055);
+      }
+
+      .caret {
+        width: 34px;
+        height: 34px;
+        display: grid;
+        place-items: center;
+        border-radius: 9px;
+        background: rgba(255, 255, 255, 0.08);
+        color: rgba(247, 248, 251, 0.9);
+        font-size: 15px;
+        font-weight: 700;
+      }
+
+      .tray-icon {
+        width: 32px;
+        height: 32px;
+        display: grid;
+        place-items: center;
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.28);
+      }
+
+      .tray-icon.small {
+        width: 30px;
+        height: 30px;
+      }
+
+      .tray-icon img {
+        width: 26px;
+      }
+
+      .menu {
+        width: 230px;
+        margin: 12px 0 0 auto;
+        padding: 7px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 12px;
+        background: rgba(18, 20, 27, 0.96);
+      }
+
+      .menu div {
+        padding: 9px 10px;
+        border-radius: 8px;
+        font-size: 12px;
+      }
+
+      .menu div.active {
+        background: var(--red-soft);
+        color: #ffd3da;
+      }
+
+      .settings {
+        padding: 18px;
+        display: grid;
+        gap: 13px;
+      }
+
+      .setting-row {
+        display: grid;
+        gap: 6px;
+      }
+
+      .setting-box {
+        min-height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 8px 10px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.045);
+        color: rgba(247, 248, 251, 0.76);
+        font-size: 12px;
+      }
+
+      .swatches {
+        display: flex;
+        gap: 8px;
+      }
+
+      .swatch {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.24);
+      }
+
+      .white { background: #f8fbff; }
+      .red { background: var(--red); }
+      .green { background: var(--green); }
+      .gray { background: #69717d; }
+
+      .flow {
+        padding: 18px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .flow-item {
+        display: grid;
+        grid-template-columns: 26px 1fr;
+        gap: 10px;
+        align-items: start;
+      }
+
+      .num {
+        width: 26px;
+        height: 26px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        background: var(--red-soft);
+        color: #ffd4da;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .flow-item strong {
+        display: block;
+        margin-bottom: 3px;
+        font-size: 12px;
+      }
+
+      .flow-item span {
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.55;
+      }
+
+      @media (max-width: 1180px) {
+        .board {
+          grid-template-columns: 1fr;
+        }
+
+        .game {
+          min-height: 760px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="board">
+      <section class="game" aria-label="游戏内透明插件示意">
+        <div class="terrain"></div>
+        <div class="hud">
+          <div class="hp"></div>
+          <div class="stamina"></div>
+        </div>
+        <div class="boss"></div>
+        <div class="player"></div>
+
+        <div class="eye-entry" aria-label="收起态蜘蛛眼入口">
+          <img src="../icons/zhizhuxia-spider-eye-empty.svg" alt="智助侠蜘蛛眼入口">
+        </div>
+
+        <aside class="plugin" aria-label="展开态智助侠透明插件">
+          <header>
+            <div class="brand">
+              <img src="../icons/zhizhuxia-spider-eye-empty.svg" alt="智助侠">
+              <div>
+                <strong>智助侠</strong>
+                <span>Ctrl + Alt + F9 显示/隐藏</span>
+              </div>
+            </div>
+            <div class="status">已连接本地服务</div>
+          </header>
+
+          <section class="toolbar">
+            <div class="field">
+              <span class="label">Agent</span>
+              <span class="value">总控攻略代理</span>
+            </div>
+            <div class="field">
+              <span class="label">Game</span>
+              <span class="value">示例动作 RPG</span>
+            </div>
+          </section>
+
+          <section class="chat">
+            <div class="bubble">告诉我当前卡点，或先截一块游戏画面。我会先判断意图，再走视觉分析和联网搜索。</div>
+            <div class="bubble user">这个 Boss 现在怎么打？我装备不太够。</div>
+            <div class="workflow" aria-label="AI 工作流状态">
+              <div class="step done">1 意图识别</div>
+              <div class="step done">2 视觉分析</div>
+              <div class="step done">3 联网搜索</div>
+              <div class="step">4 生成回复</div>
+            </div>
+            <div class="bubble">截图显示角色体力偏低，建议先补位移和抗性。已按 B站 -> 小黑盒顺序查资料，再结合 GLM-5.2 生成路线。</div>
+          </section>
+
+          <footer class="composer">
+            <div class="input">
+              <div class="btn red">截屏</div>
+              <div class="placeholder">输入攻略问题...</div>
+              <div class="btn">发送</div>
+            </div>
+          </footer>
+        </aside>
+
+        <div class="capture-layer" aria-label="区域截图示意">
+          <div class="capture-box"></div>
+          <div class="capture-label">Ctrl + Alt + F10 进入区域截图，拖拽选择，Esc 取消</div>
+        </div>
+
+        <div class="callout c1"><b>1</b> 收起态只保留透明蜘蛛眼，贴边，不挡游戏 HUD。</div>
+        <div class="callout c2"><b>2</b> 展开态不放配置按钮，减少游戏中误触和遮挡。</div>
+        <div class="callout c3"><b>3</b> 截图层只短暂出现，选完区域后回到透明插件。</div>
+      </section>
+
+      <aside class="sidebar" aria-label="托盘设置与连通标注">
+        <section class="card">
+          <div class="card-head">
+            <h1>托盘配置入口</h1>
+            <p>配置不进入游戏画面，通过 Windows 右下角“显示隐藏图标”里的智助侠图标打开。</p>
+          </div>
+          <div class="tray">
+            <div class="taskbar-wrap">
+              <div class="overflow" aria-label="点击上箭头后展开的隐藏图标面板">
+                <div class="tray-icon small"></div>
+                <div class="tray-icon small"></div>
+                <div class="tray-icon small"></div>
+                <div class="tray-icon small"><img src="../icons/zhizhuxia-spider-eye-empty.svg" alt="智助侠托盘图标"></div>
+                <div class="tray-icon small"></div>
+                <div class="tray-icon small"></div>
+                <div class="tray-icon small"></div>
+                <div class="tray-icon small"></div>
+              </div>
+              <div class="taskbar" aria-label="Windows 任务栏右下角示意">
+                <span class="micro">任务栏右下角</span>
+                <div class="caret">^</div>
+                <div class="tray-icon"><img src="../icons/zhizhuxia-spider-eye-empty.svg" alt="智助侠任务栏图标"></div>
+              </div>
+            </div>
+            <div class="menu" aria-label="右键菜单">
+              <div>显示/隐藏智助侠</div>
+              <div>区域截图</div>
+              <div class="active">配置</div>
+              <div>退出</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card settings" aria-label="设置窗口示意">
+          <h2>设置窗口</h2>
+          <div class="setting-row">
+            <span class="label">API Key</span>
+            <div class="setting-box"><span>智谱 API Key</span><span>文本/视觉共用，仅内存</span></div>
+          </div>
+          <div class="setting-row">
+            <span class="label">快捷键</span>
+            <div class="setting-box"><span>显示/隐藏</span><span>Ctrl + Alt + F9</span></div>
+            <div class="setting-box"><span>区域截图</span><span>Ctrl + Alt + F10</span></div>
+          </div>
+          <div class="setting-row">
+            <span class="label">图标外观</span>
+            <div class="setting-box">
+              <span>颜色</span>
+              <div class="swatches">
+                <i class="swatch white"></i>
+                <i class="swatch red"></i>
+                <i class="swatch green"></i>
+                <i class="swatch gray"></i>
+              </div>
+            </div>
+            <div class="setting-box"><span>图标透明度</span><span>20% - 100%</span></div>
+            <div class="setting-box"><span>面板透明度</span><span>35% - 75%</span></div>
+            <div class="setting-box"><span>鼠标穿透</span><span>仅收起态</span></div>
+          </div>
+        </section>
+
+        <section class="card flow" aria-label="后端连通方式">
+          <div class="flow-item">
+            <div class="num">1</div>
+            <div><strong>WPF 桌面插件</strong><span>透明 UI、截图、托盘菜单，通过 HttpClient 调本地服务。</span></div>
+          </div>
+          <div class="flow-item">
+            <div class="num">2</div>
+            <div><strong>Node /api/chat</strong><span>接收 apiKey、message、screenshot。</span></div>
+          </div>
+          <div class="flow-item">
+            <div class="num">3</div>
+            <div><strong>智谱 GLM-5.2</strong><span>有截图时先分析画面，输出视觉结论。</span></div>
+          </div>
+          <div class="flow-item">
+            <div class="num">4</div>
+            <div><strong>B站 -> 小黑盒 -> GLM-5.2</strong><span>搜索资料后生成最终攻略回复。</span></div>
+          </div>
+        </section>
+      </aside>
+    </main>
+  </body>
+</html>

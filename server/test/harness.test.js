@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { evaluateGuideRun, validateAgentOutput } from '../src/harness.js';
+import { evaluateChatAnswer, evaluateGuideRun, validateAgentOutput } from '../src/harness.js';
 
 test('rejects agent output that is missing required fields', () => {
   const result = validateAgentOutput('research', { keyMechanics: ['boss has shield'] });
@@ -29,4 +29,23 @@ test('scores a final guide between 0 and 100', () => {
   assert.equal(result.total >= 0, true);
   assert.equal(result.total <= 100, true);
   assert.equal(result.issues.length, 0);
+});
+
+test('warns if low-confidence chat skips research', () => {
+  const result = evaluateChatAnswer({
+    apiKey: 'sk-test',
+    selectedAgent: 'mechanics',
+    message: 'What changed in the newest boss patch?',
+    response: {
+      agentId: 'mechanics',
+      confidence: 'low',
+      needResearch: true,
+      sources: [],
+      answer: 'Use safer positioning.',
+      usedAgents: []
+    }
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.warnings.includes('Low-confidence answer must run research or clearly report research failure'), true);
 });

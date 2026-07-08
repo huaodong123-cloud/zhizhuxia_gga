@@ -1,0 +1,329 @@
+import { MODEL_ID } from './config.js';
+import { evaluateChatAnswer } from './harness.js';
+import { normalizeImageInputs, normalizeScreenshotInput, resolveModelProfile } from './models.js';
+import { runResearchQuery } from './research.js';
+import { rankFromStrongToWeak } from './tools.js';
+import { callZhipuChat, callZhipuVision } from './zhipu.js';
+
+export const CHAT_AGENTS = [
+  { id: 'chief', name: '总控攻略代理' },
+  { id: 'research', name: '资料检索代理' },
+  { id: 'mechanics', name: '机制分析代理' },
+  { id: 'build', name: '配装建议代理' },
+  { id: 'route', name: '路线规划代理' },
+  { id: 'combat', name: '战斗教练代理' },
+  { id: 'critic', name: '质量审查代理' }
+];
+
+const VALID_AGENT_IDS = new Set(CHAT_AGENTS.map((agent) => agent.id));
+const AGENT_LABELS = Object.fromEntries(CHAT_AGENTS.map((agent) => [agent.id, agent.name]));
+
+function knowledgeCheck(message = '') {
+  const lower = message.toLowerCase();
+  const patchSpecific = ['newest', 'latest', 'patch', 'version', 'changed', 'current', '最新版', '版本', '补丁'].some((word) => lower.includes(word));
+
+  if (patchSpecific) {
+    return {
+      confidence: 'low',
+      needResearch: true,
+      reason: '这个问题可能依赖当前版本或补丁信息。'
+    };
+  }
+
+  return {
+    confidence: 'medium',
+    needResearch: false,
+    reason: '这个问题可以先基于通用攻略规划模式回答，并明确假设。'
+  };
+}
+
+function selectChiefSpecialists(message = '') {
+  const lower = message.toLowerCase();
+  const agents = ['research'];
+
+  if (/boss|phase|mechanic|patch|changed|fire|首领|阶段|机制|版本|火/i.test(lower)) agents.push('mechanics');
+  if (/team|build|gear|character|weapon|loadout|队伍|配装|装备|角色|武器/i.test(lower)) agents.push('build');
+  if (/route|farm|daily|material|path|路线|刷|材料|日常/i.test(lower)) agents.push('route');
+  if (/boss|fight|combat|rotation|phase|fire|首领|战斗|循环|阶段|火/i.test(lower)) agents.push('combat');
+
+  agents.push('critic');
+  return [...new Set(agents)];
+}
+
+function splitCandidateItems(value = '') {
+  return String(value)
+    .split(/\r?\n|,|，|、|\/|；|;/)
+    .map((item) => item.replace(/^(帮我|把|给我|请|来个|做个|排一下|排名一下|对比一下)+/g, '').trim())
+    .map((item) => item.replace(/^(和|跟|与)\s*/g, '').trim())
+    .filter(Boolean);
+}
+
+export function identifyChatIntent(message = '') {
+  const text = String(message || '').trim();
+  const isRanking = /从夯到拉|夯到拉|排名|排行|强度榜|梯度|tier/i.test(text);
+
+  if (!isRanking) {
+    return { type: 'chat', items: [] };
+  }
+
+  const beforeRank = text
+    .split(/从夯到拉|夯到拉|排名|排行|强度榜|梯度|tier/i)[0]
+    .replace(/^(帮我|给我|请|来个|做个)\s*/g, '')
+    .replace(/^把\s*/g, '');
+  const items = splitCandidateItems(beforeRank);
+
+  return {
+    type: 'ranking',
+    items,
+    context: text
+  };
+}
+
+function identifyWorkflowIntent({ message = '', screenshot = null }) {
+  const ranking = identifyChatIntent(message);
+  if (ranking.type === 'ranking') {
+    return ranking;
+  }
+
+  return {
+    type: screenshot ? 'screenshot_question' : 'text_question',
+    items: []
+  };
+}
+
+function buildSearchQuery({ gameName, message, visionAnalysis }) {
+  return [
+    gameName,
+    message,
+    visionAnalysis?.summary || ''
+  ].filter(Boolean).join(' ').trim();
+}
+
+function buildMessages({ agentId, message, gameName, check, sources, failures, usedAgents, modelProfile, images, visionAnalysis }) {
+  const sourceText = sources.length
+    ? sources.map((source) => `- ${source.source}：${source.title}。${source.summary}`).join('\n')
+    : '没有外部来源卡片。';
+  const failureText = failures?.length ? failures.join('；') : '无';
+  const userText = [
+    `游戏：${gameName || '未提供'}`,
+    `用户问题：${message}`,
+    visionAnalysis?.summary ? `截图分析：${visionAnalysis.summary}` : '',
+    visionAnalysis?.observations?.length ? `截图观察：${visionAnalysis.observations.join('；')}` : '',
+    `知识判断：置信度 ${check.confidence}；是否需要检索资料：${check.needResearch ? '是' : '否'}；原因：${check.reason}`,
+    `来源卡片：\n${sourceText}`,
+    `搜索失败：${failureText}`,
+    images.length ? `视觉输入：用户附带 ${images.length} 张图片，请结合图片内容分析。` : '',
+    '请给出一段适合聊天窗口展示的攻略回答。'
+  ].filter(Boolean).join('\n');
+  const userContent = images.length
+    ? [
+        { type: 'text', text: userText },
+        ...images.map((image) => ({
+          type: 'image',
+          mediaType: image.mediaType,
+          data: image.data
+        }))
+      ]
+    : userText;
+
+  return [
+    {
+      role: 'system',
+      content: [
+        '你是本地部署的游戏攻略多代理助手。',
+        `当前模型：${modelProfile.id}。`,
+        `当前代理：${AGENT_LABELS[agentId] || agentId}。`,
+        `参与代理：${usedAgents.map((id) => AGENT_LABELS[id] || id).join('、')}。`,
+        '请用中文回答，不要使用英文界面词。',
+        '如果信息可能过期，请说明不确定性。',
+        '回答要具体、可执行，避免空泛建议。',
+        '不要输出用户密钥或任何密钥片段。'
+      ].join('\n')
+    },
+    {
+      role: 'user',
+      content: userContent
+    }
+  ];
+}
+
+export async function createChatResponse(input = {}, {
+  modelClient = callZhipuChat,
+  visionClient = callZhipuVision,
+  researchClient = runResearchQuery,
+  rankTool = rankFromStrongToWeak
+} = {}) {
+  const apiKey = String(input.apiKey || '').trim();
+  const visionApiKey = String(input.visionApiKey || '').trim();
+  const effectiveVisionApiKey = visionApiKey || apiKey;
+  const agentId = input.agentId || 'chief';
+  const message = String(input.message || '').trim();
+  const gameName = String(input.gameName || '').trim();
+  const modelProfile = resolveModelProfile(String(input.modelId || MODEL_ID).trim());
+  const images = normalizeImageInputs(input.images);
+  const screenshot = normalizeScreenshotInput(input.screenshot) || images[0] || null;
+  const intent = identifyWorkflowIntent({ message, screenshot });
+  const errors = [];
+
+  if (!apiKey) errors.push('API key is required');
+  if (!VALID_AGENT_IDS.has(agentId)) errors.push('Selected agent is invalid');
+  if (!message) errors.push('Message is required');
+
+  if (errors.length) {
+    return {
+      status: 'failed',
+      errors,
+      intent: intent.type,
+      model: modelProfile.id,
+      modelCapabilities: modelProfile.capabilities,
+      imagesUsed: screenshot ? 1 : 0,
+      workflowStages: ['intent']
+    };
+  }
+
+  if (intent.type === 'ranking' && intent.items.length >= 2) {
+    const rankResult = await rankTool({
+      apiKey,
+      gameName,
+      context: intent.context,
+      items: intent.items
+    });
+
+    if (rankResult.status === 'failed') {
+      return rankResult;
+    }
+
+    const response = {
+      status: 'completed',
+      intent: 'ranking',
+      model: modelProfile.id,
+      agentId,
+      confidence: 'high',
+      needResearch: false,
+      knowledgeCheck: {
+        confidence: 'high',
+        needResearch: false,
+        reason: '已识别为排名意图，自动调用从夯到拉工具。'
+      },
+      usedAgents: ['critic'],
+      sources: [],
+      researchFailures: [],
+      answer: rankResult.markdown,
+      provider: rankResult.provider || {
+        model: modelProfile.id,
+        usage: null
+      },
+      modelCapabilities: modelProfile.capabilities,
+      imagesUsed: screenshot ? 1 : 0,
+      workflowStages: ['intent', 'rank']
+    };
+
+    response.harness = evaluateChatAnswer({
+      apiKey,
+      selectedAgent: agentId,
+      message,
+      response
+    });
+
+    return response;
+  }
+
+  const check = knowledgeCheck(message);
+  const usedAgents = agentId === 'chief' ? selectChiefSpecialists(message) : [agentId];
+  const workflowStages = ['intent'];
+  let visionAnalysis = null;
+
+  if (screenshot) {
+    workflowStages.push('vision');
+    try {
+      visionAnalysis = await visionClient({
+        apiKey: effectiveVisionApiKey,
+        screenshot,
+        prompt: [
+          `游戏：${gameName || '未提供'}`,
+          `用户问题：${message}`,
+          '请分析截图中的游戏界面、资源、角色状态、任务目标和可执行建议。'
+        ].join('\n')
+      });
+    } catch (error) {
+      return {
+        status: 'failed',
+        errors: [error.message],
+        intent: intent.type,
+        model: modelProfile.id,
+        modelCapabilities: modelProfile.capabilities,
+        imagesUsed: 1,
+        workflowStages
+      };
+    }
+  }
+
+  workflowStages.push('research');
+  const requestedSearchQuery = buildSearchQuery({ gameName, message, visionAnalysis });
+  const research = await researchClient({
+    gameName,
+    message,
+    query: visionAnalysis?.summary ? `${message}\n截图分析：${visionAnalysis.summary}` : message,
+    searchQuery: requestedSearchQuery,
+    agentId,
+    intent: intent.type,
+    visionAnalysis
+  });
+  const searchQuery = research.searchQuery || requestedSearchQuery;
+  const messages = buildMessages({
+    agentId,
+    message,
+    gameName,
+    check,
+    sources: research.sources,
+    failures: research.failures,
+    usedAgents,
+    modelProfile,
+    images: [],
+    visionAnalysis
+  });
+
+  let modelResult;
+  try {
+    workflowStages.push('answer');
+    modelResult = await modelClient({ apiKey, model: modelProfile.id, messages, modelProfile });
+  } catch (error) {
+    return {
+      status: 'failed',
+      errors: [error.message]
+    };
+  }
+
+  const response = {
+    status: 'completed',
+    model: modelProfile.id,
+    intent: intent.type,
+    agentId,
+    confidence: check.confidence,
+    needResearch: check.needResearch,
+    knowledgeCheck: check,
+    usedAgents,
+    sources: research.sources,
+    researchFailures: research.failures,
+    checkedSources: research.checkedSources || [],
+    searchQuery,
+    visionAnalysis,
+    workflowStages,
+    answer: modelResult.answer,
+    modelCapabilities: modelProfile.capabilities,
+    imagesUsed: screenshot ? 1 : 0,
+    provider: {
+      model: modelResult.model || modelProfile.id,
+      usage: modelResult.usage || null
+    }
+  };
+
+  response.harness = evaluateChatAnswer({
+    apiKey,
+    selectedAgent: agentId,
+    message,
+    response
+  });
+
+  return response;
+}

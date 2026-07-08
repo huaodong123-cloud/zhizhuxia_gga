@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>智助侠新 Logo 原型 - 空心面罩眼</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: transparent;
+        --panel: #10131a;
+        --line: rgba(255, 255, 255, 0.1);
+        --text: #f6f8fb;
+        --muted: #8d96a5;
+        --red: #d91f35;
+        --blue: #8ec8ff;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        background:
+          linear-gradient(45deg, rgba(255, 255, 255, 0.08) 25%, transparent 25%),
+          linear-gradient(-45deg, rgba(255, 255, 255, 0.08) 25%, transparent 25%),
+          linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.08) 75%),
+          linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.08) 75%),
+          #151820;
+        background-size: 28px 28px;
+        background-position: 0 0, 0 14px, 14px -14px, -14px 0;
+        color: var(--text);
+        font-family: "Segoe UI", "Microsoft YaHei UI", sans-serif;
+      }
+
+      .stage {
+        width: min(1120px, calc(100vw - 48px));
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 24px;
+        align-items: stretch;
+      }
+
+      .hero,
+      .samples {
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: rgba(16, 19, 26, 0.64);
+        box-shadow: 0 30px 100px rgba(0, 0, 0, 0.45);
+      }
+
+      .hero {
+        min-height: 520px;
+        display: grid;
+        place-items: center;
+        padding: 42px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .hero::before {
+        content: "";
+        position: absolute;
+        inset: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.055);
+        border-radius: 14px;
+      }
+
+      .mark {
+        width: min(520px, 78vw);
+        filter: drop-shadow(0 18px 42px rgba(0, 0, 0, 0.56));
+      }
+
+      .caption {
+        position: absolute;
+        left: 34px;
+        bottom: 28px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 22px;
+        letter-spacing: 0;
+      }
+
+      p {
+        margin: 0;
+        max-width: 520px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.7;
+      }
+
+      .samples {
+        padding: 24px;
+        display: grid;
+        gap: 18px;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 96px 1fr;
+        gap: 14px;
+        align-items: center;
+      }
+
+      .tile {
+        width: 96px;
+        height: 96px;
+        display: grid;
+        place-items: center;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: #05070b;
+      }
+
+      .tile.light {
+        background: #f2f5f8;
+      }
+
+      .tile.red {
+        background: linear-gradient(135deg, #150409, #601321);
+      }
+
+      .tile img {
+        width: 76px;
+      }
+
+      .note strong {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 14px;
+      }
+
+      .note span {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.55;
+      }
+
+      @media (max-width: 860px) {
+        .stage {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="stage">
+      <section class="hero">
+        <img class="mark" src="../icons/zhizhuxia-spider-eye-empty.svg" alt="空心面罩眼 Logo">
+        <div class="caption">
+          <h1>智助侠 Logo 原型 A</h1>
+          <p>透明背景、透明内腔，只保留空心面罩眼轮廓。保留上挑速度感和警觉感，但用更窄的镂空、更厚的外缘做成原创桌面助手标识。</p>
+        </div>
+      </section>
+
+      <section class="samples">
+        <div class="row">
+          <div class="tile"><img src="../icons/zhizhuxia-spider-eye-empty.svg" alt=""></div>
+          <div class="note">
+            <strong>暗色桌面入口</strong>
+            <span>适合悬浮按钮和托盘图标，外轮廓在黑色背景上仍清晰。</span>
+          </div>
+        </div>
+        <div class="row">
+          <div class="tile light"><img src="../icons/zhizhuxia-spider-eye-empty.svg" alt=""></div>
+          <div class="note">
+            <strong>浅色背景</strong>
+            <span>黑色外缘能承住形状，白色眼片不会消失。</span>
+          </div>
+        </div>
+        <div class="row">
+          <div class="tile red"><img src="../icons/zhizhuxia-spider-eye-empty.svg" alt=""></div>
+          <div class="note">
+            <strong>品牌红背景</strong>
+            <span>后续可以把红作为小工具唤起态或截图模式强调色。</span>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

@@ -61,3 +61,50 @@ export function evaluateGuideRun({ input = {}, finalGuide = {}, criticFindings =
     issues
   };
 }
+
+export function evaluateChatAnswer({ apiKey = '', selectedAgent = '', message = '', response = {} } = {}) {
+  const warnings = [];
+
+  if (!String(apiKey).trim()) {
+    warnings.push('API key is required');
+  }
+
+  if (!selectedAgent) {
+    warnings.push('Selected agent is required');
+  }
+
+  if (!response.knowledgeCheck && !(response.confidence && 'needResearch' in response)) {
+    warnings.push('Knowledge check is required');
+  }
+
+  if (response.confidence === 'low' && response.needResearch && !response.sources?.length && !response.researchFailures?.length) {
+    warnings.push('Low-confidence answer must run research or clearly report research failure');
+  }
+
+  for (const source of response.sources || []) {
+    for (const field of ['source', 'title', 'url', 'summary']) {
+      if (!source[field]) {
+        warnings.push(`Source card missing ${field}`);
+      }
+    }
+  }
+
+  const answer = String(response.answer || '').toLowerCase();
+  const importantTerms = String(message)
+    .toLowerCase()
+    .split(/\W+/)
+    .filter((term) => term.length > 3);
+
+  if (importantTerms.length && !importantTerms.some((term) => answer.includes(term))) {
+    warnings.push('Answer does not clearly address the user question');
+  }
+
+  if (response.agentId === 'chief' && (!Array.isArray(response.usedAgents) || response.usedAgents.length === 0)) {
+    warnings.push('Chief guide answer must list specialist agents used');
+  }
+
+  return {
+    ok: warnings.length === 0,
+    warnings
+  };
+}

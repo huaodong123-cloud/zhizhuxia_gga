@@ -1,106 +1,47 @@
-const form = document.querySelector('#guide-form');
-const settingsForm = document.querySelector('#settings-form');
-const agentsEl = document.querySelector('#agents');
-const workflowEl = document.querySelector('#workflow');
-const guideEl = document.querySelector('#guide');
-const issuesEl = document.querySelector('#issues');
-const scoreEl = document.querySelector('#score');
-const runStatusEl = document.querySelector('#run-status');
-const sampleButton = document.querySelector('#sample-button');
-const copyButton = document.querySelector('#copy-button');
+const loginView = document.querySelector('#login-view');
+const chatView = document.querySelector('#chat-view');
+const loginForm = document.querySelector('#login-form');
+const apiKeyInput = document.querySelector('#api-key-input');
+const loginError = document.querySelector('#login-error');
+const settingsButton = document.querySelector('#settings-button');
+const settingsPanel = document.querySelector('#settings-panel');
+const settingsApiKey = document.querySelector('#settings-api-key');
+const saveSettingsButton = document.querySelector('#save-settings-button');
+const chatPanel = document.querySelector('#chat-panel');
+const agentSelect = document.querySelector('#agent-select');
+const gameNameInput = document.querySelector('#game-name-input');
+const chatStream = document.querySelector('#chat-stream');
+const chatForm = document.querySelector('#chat-form');
+const messageInput = document.querySelector('#message-input');
 
-let latestGuideText = '';
+let sessionApiKey = '';
 
-const sample = {
-  apiKey: 'sk-demo-not-sent-to-storage',
-  gameName: 'Example RPG',
-  progress: 'Level 42, chapter 5',
-  resources: 'Two healers, mid-tier gear, 40 minutes per day',
-  stuckPoint: 'Cannot beat the fire boss shield phase',
-  target: 'Clear the boss this week'
+const agentLabels = {
+  chief: '总控攻略代理',
+  research: '资料检索代理',
+  mechanics: '机制分析代理',
+  build: '配装建议代理',
+  route: '路线规划代理',
+  combat: '战斗教练代理',
+  critic: '质量审查代理'
 };
 
-function formDataToObject() {
-  return {
-    ...Object.fromEntries(new FormData(form).entries()),
-    apiKey: new FormData(settingsForm).get('apiKey')
-  };
-}
+const confidenceLabels = {
+  low: '低',
+  medium: '中',
+  high: '高'
+};
 
-function renderAgents(agents = []) {
-  agentsEl.innerHTML = agents.map((agent) => `
-    <details class="agent-card" open>
-      <summary>
-        <strong>${agent.name}</strong>
-        <span class="status">${agent.status}</span>
-      </summary>
-      <pre>${escapeHtml(JSON.stringify(agent.output, null, 2))}</pre>
-    </details>
-  `).join('');
-}
+const sourceLabels = {
+  bilibili: '哔哩哔哩',
+  xiaoheihe: '小黑盒'
+};
 
-function renderWorkflow(stages = []) {
-  workflowEl.innerHTML = stages.map((stage) => `
-    <li>
-      <strong>${stage.name}</strong>
-      <span class="status">${stage.status}</span>
-    </li>
-  `).join('');
-}
-
-function renderGuide(guide) {
-  if (!guide) {
-    latestGuideText = '';
-    guideEl.className = 'guide-output empty';
-    guideEl.textContent = '等待一次规划运行。';
-    return;
-  }
-
-  latestGuideText = [
-    `诊断：${guide.diagnosis}`,
-    `步骤：${guide.steps.join(' / ')}`,
-    `配装：${guide.buildAdvice}`,
-    `路线：${guide.routePlan}`,
-    `风险：${guide.risks.join(' / ')}`
-  ].join('\n');
-
-  guideEl.className = 'guide-output';
-  guideEl.innerHTML = `
-    <section>
-      <h3>现状诊断</h3>
-      <p>${escapeHtml(guide.diagnosis)}</p>
-    </section>
-    <section>
-      <h3>执行步骤</h3>
-      <ul>${guide.steps.map((step) => `<li>${escapeHtml(step)}</li>`).join('')}</ul>
-    </section>
-    <section>
-      <h3>Build</h3>
-      <p>${escapeHtml(guide.buildAdvice)}</p>
-    </section>
-    <section>
-      <h3>路线</h3>
-      <p>${escapeHtml(guide.routePlan)}</p>
-    </section>
-    <section>
-      <h3>风险</h3>
-      <ul>${guide.risks.map((risk) => `<li>${escapeHtml(risk)}</li>`).join('')}</ul>
-    </section>
-  `;
-}
-
-function renderHarness(harness) {
-  if (!harness) {
-    scoreEl.textContent = '--';
-    issuesEl.innerHTML = '';
-    return;
-  }
-
-  scoreEl.textContent = `${harness.total}/100`;
-  issuesEl.innerHTML = harness.issues.length
-    ? harness.issues.map((issue) => `<li>${escapeHtml(issue)}</li>`).join('')
-    : '<li>未发现阻断问题</li>';
-}
+const freshnessLabels = {
+  unknown: '新鲜度未知',
+  'likely-current': '可能较新',
+  'possibly-outdated': '可能过期'
+};
 
 function escapeHtml(value) {
   return String(value)
@@ -111,46 +52,189 @@ function escapeHtml(value) {
     .replaceAll("'", '&#039;');
 }
 
-sampleButton.addEventListener('click', () => {
-  for (const [key, value] of Object.entries(sample)) {
-    if (settingsForm.elements[key]) {
-      settingsForm.elements[key].value = value;
-    }
-    if (form.elements[key]) {
-      form.elements[key].value = value;
+function renderInlineMarkdown(value) {
+  return escapeHtml(value).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+}
+
+function renderMarkdown(markdown = '') {
+  const lines = String(markdown).split(/\r?\n/);
+  const html = [];
+  let listOpen = false;
+  let codeOpen = false;
+
+  function closeList() {
+    if (listOpen) {
+      html.push('</ol>');
+      listOpen = false;
     }
   }
-});
 
-copyButton.addEventListener('click', async () => {
-  if (!latestGuideText) return;
-  await navigator.clipboard.writeText(latestGuideText);
-});
+  for (const line of lines) {
+    if (line.trim().startsWith('```')) {
+      closeList();
+      html.push(codeOpen ? '</code></pre>' : '<pre><code>');
+      codeOpen = !codeOpen;
+      continue;
+    }
 
-form.addEventListener('submit', async (event) => {
+    if (codeOpen) {
+      html.push(`${escapeHtml(line)}\n`);
+      continue;
+    }
+
+    if (/^##\s+/.test(line)) {
+      closeList();
+      html.push(`<h3>${renderInlineMarkdown(line.replace(/^##\s+/, ''))}</h3>`);
+      continue;
+    }
+
+    if (/^#\s+/.test(line)) {
+      closeList();
+      html.push(`<h3>${renderInlineMarkdown(line.replace(/^#\s+/, ''))}</h3>`);
+      continue;
+    }
+
+    if (/^\d+\.\s+/.test(line)) {
+      if (!listOpen) {
+        html.push('<ol>');
+        listOpen = true;
+      }
+      html.push(`<li>${renderInlineMarkdown(line.replace(/^\d+\.\s+/, ''))}</li>`);
+      continue;
+    }
+
+    if (/^[-*]\s+/.test(line)) {
+      if (!listOpen) {
+        html.push('<ol>');
+        listOpen = true;
+      }
+      html.push(`<li>${renderInlineMarkdown(line.replace(/^[-*]\s+/, ''))}</li>`);
+      continue;
+    }
+
+    closeList();
+
+    if (line.trim()) {
+      html.push(`<p>${renderInlineMarkdown(line)}</p>`);
+    }
+  }
+
+  closeList();
+  if (codeOpen) html.push('</code></pre>');
+  return html.join('');
+}
+
+function enterChat(apiKey) {
+  sessionApiKey = apiKey;
+  settingsApiKey.value = apiKey;
+  loginView.hidden = true;
+  chatView.hidden = false;
+  messageInput.focus();
+}
+
+function appendMessage(role, label, html) {
+  const article = document.createElement('article');
+  article.className = `message ${role}`;
+  article.innerHTML = `
+    <div class="message-meta">${escapeHtml(label)}</div>
+    <div class="message-body">${html}</div>
+  `;
+  chatStream.append(article);
+  chatStream.scrollTop = chatStream.scrollHeight;
+}
+
+function renderSourceCards(sources = []) {
+  if (!sources.length) return '';
+
+  return `
+    <div class="source-list">
+      ${sources.map((source) => `
+        <a class="source-card" href="${escapeHtml(source.url)}" target="_blank" rel="noreferrer">
+          <span>${escapeHtml(sourceLabels[source.source] || source.source)}</span>
+          <strong>${escapeHtml(source.title)}</strong>
+          <small>${escapeHtml(freshnessLabels[source.freshness] || source.freshness)}</small>
+          <p>${escapeHtml(source.summary)}</p>
+        </a>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderHarnessWarnings(harness) {
+  if (!harness?.warnings?.length) {
+    return '';
+  }
+
+  return `
+    <ul class="harness warning">
+      ${harness.warnings.map((warning) => `<li>${escapeHtml(warning)}</li>`).join('')}
+    </ul>
+  `;
+}
+
+function renderAssistantResponse(payload) {
+  const sourceCards = renderSourceCards(payload.sources);
+  const warnings = renderHarnessWarnings(payload.harness);
+
+  appendMessage('assistant', agentLabels[payload.agentId] || payload.agentId, `
+    <div class="markdown-body">${renderMarkdown(payload.answer)}</div>
+    ${sourceCards}
+    ${warnings}
+  `);
+}
+
+loginForm.addEventListener('submit', (event) => {
   event.preventDefault();
-  runStatusEl.textContent = 'running';
-  renderAgents([]);
-  renderWorkflow([{ name: 'Intake', status: 'running' }]);
-  renderGuide(null);
-  renderHarness(null);
+  const apiKey = apiKeyInput.value.trim();
 
-  const response = await fetch('/api/runs', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(formDataToObject())
-  });
-
-  const run = await response.json();
-  runStatusEl.textContent = run.status;
-
-  if (!response.ok) {
-    issuesEl.innerHTML = (run.errors || ['请求失败']).map((error) => `<li>${escapeHtml(error)}</li>`).join('');
+  if (!apiKey) {
+    loginError.textContent = '请输入 DeepSeek 密钥。';
     return;
   }
 
-  renderAgents(run.agents);
-  renderWorkflow(run.workflow);
-  renderGuide(run.finalGuide);
-  renderHarness(run.harness);
+  loginError.textContent = '';
+  enterChat(apiKey);
+});
+
+settingsButton.addEventListener('click', () => {
+  settingsPanel.hidden = !settingsPanel.hidden;
+});
+
+saveSettingsButton.addEventListener('click', () => {
+  const apiKey = settingsApiKey.value.trim();
+  if (!apiKey) return;
+  sessionApiKey = apiKey;
+  settingsPanel.hidden = true;
+});
+
+chatForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const message = messageInput.value.trim();
+  if (!message) return;
+
+  appendMessage('user', '你', `<p>${escapeHtml(message)}</p>`);
+  messageInput.value = '';
+  appendMessage('assistant pending', '智助侠', '<p>思考中...</p>');
+
+  const response = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      apiKey: sessionApiKey,
+      agentId: agentSelect.value,
+      message,
+      gameName: gameNameInput.value.trim()
+    })
+  });
+
+  const pending = chatStream.querySelector('.message.pending');
+  if (pending) pending.remove();
+
+  const payload = await response.json();
+  if (!response.ok) {
+    appendMessage('assistant error', '智助侠', `<p>${escapeHtml((payload.errors || ['请求失败']).join(' / '))}</p>`);
+    return;
+  }
+
+  renderAssistantResponse(payload);
 });

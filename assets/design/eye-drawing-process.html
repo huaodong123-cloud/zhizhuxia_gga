@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>智助侠眼睛入口绘制过程</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0b0c0d;
+        --panel: rgba(20, 7, 8, 0.76);
+        --line: rgba(255, 122, 77, 0.92);
+        --glow: #ff7a4d;
+        --iris: #d7412e;
+        --text: #f4f4f4;
+        --muted: #9ca3a3;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        background:
+          linear-gradient(135deg, rgba(180, 20, 29, 0.08), transparent 38%),
+          radial-gradient(circle at 70% 20%, rgba(255, 122, 77, 0.12), transparent 30%),
+          var(--bg);
+        color: var(--text);
+        font-family: "Segoe UI", "Microsoft YaHei UI", sans-serif;
+      }
+
+      .stage {
+        width: min(760px, calc(100vw - 40px));
+        display: grid;
+        gap: 22px;
+        justify-items: center;
+      }
+
+      .caption {
+        display: grid;
+        gap: 6px;
+        text-align: center;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 650;
+        letter-spacing: 0;
+      }
+
+      p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .canvas {
+        width: min(460px, 82vw);
+        aspect-ratio: 1;
+        display: grid;
+        place-items: center;
+        border: 1px solid rgba(215, 248, 234, 0.18);
+        border-radius: 28px;
+        background: rgba(255, 255, 255, 0.025);
+        box-shadow: 0 30px 90px rgba(0, 0, 0, 0.42);
+      }
+
+      svg {
+        width: 76%;
+        height: 76%;
+        overflow: visible;
+      }
+
+      .tile {
+        opacity: 0;
+        animation: fade-in 500ms ease forwards;
+      }
+
+      .eye-outline {
+        fill: rgba(30, 30, 30, 0.68);
+        stroke: var(--line);
+        stroke-width: 8;
+        stroke-linejoin: round;
+        stroke-dasharray: 540;
+        stroke-dashoffset: 540;
+        filter: drop-shadow(0 0 19px rgba(255, 80, 42, 0.46)) drop-shadow(0 16px 18px rgba(0, 0, 0, 0.68));
+        animation: draw-line 1700ms ease forwards 650ms;
+      }
+
+      .inner-depth {
+        opacity: 0;
+        animation: fade-in 520ms ease forwards 1800ms;
+      }
+
+      .vein {
+        fill: none;
+        stroke: #b4141d;
+        stroke-width: 4;
+        stroke-linecap: round;
+        stroke-opacity: 0.78;
+        stroke-dasharray: 120;
+        stroke-dashoffset: 120;
+        animation: draw-line 720ms ease forwards 1950ms;
+      }
+
+      .iris {
+        opacity: 0;
+        transform: scale(0.55);
+        transform-origin: 128px 128px;
+        animation: pop-in 620ms cubic-bezier(.2, .9, .2, 1.2) forwards 2520ms;
+      }
+
+      .pupil {
+        opacity: 0;
+        transform: scale(0.6);
+        transform-origin: 128px 128px;
+        animation: pop-in 420ms ease forwards 2960ms;
+      }
+
+      .highlight {
+        opacity: 0;
+        animation: fade-in 360ms ease forwards 3360ms;
+      }
+
+      .upper-shine {
+        fill: none;
+        stroke: rgba(255, 255, 255, 0.22);
+        stroke-width: 5;
+        stroke-linecap: round;
+        stroke-dasharray: 170;
+        stroke-dashoffset: 170;
+        animation: draw-line 620ms ease forwards 3600ms;
+      }
+
+      .lower-shadow {
+        fill: none;
+        stroke: rgba(0, 0, 0, 0.42);
+        stroke-width: 7;
+        stroke-linecap: round;
+        stroke-dasharray: 160;
+        stroke-dashoffset: 160;
+        animation: draw-line 620ms ease forwards 3800ms;
+      }
+
+      .steps {
+        width: min(460px, 82vw);
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+      }
+
+      .step {
+        min-height: 36px;
+        display: grid;
+        place-items: center;
+        border: 1px solid rgba(215, 248, 234, 0.14);
+        border-radius: 10px;
+        color: var(--muted);
+        font-size: 12px;
+        background: rgba(18, 18, 18, 0.46);
+        opacity: 0;
+      }
+
+      .step:nth-child(1) { animation: fade-in 300ms ease forwards 300ms; }
+      .step:nth-child(2) { animation: fade-in 300ms ease forwards 900ms; }
+      .step:nth-child(3) { animation: fade-in 300ms ease forwards 2520ms; }
+      .step:nth-child(4) { animation: fade-in 300ms ease forwards 3360ms; }
+
+      @keyframes draw-line {
+        to { stroke-dashoffset: 0; }
+      }
+
+      @keyframes fade-in {
+        to { opacity: 1; }
+      }
+
+      @keyframes pop-in {
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="stage">
+      <div class="caption">
+        <h1>智助侠眼睛入口绘制过程</h1>
+        <p>外框、眼形、瞳孔、高光会按顺序画出来。</p>
+      </div>
+
+      <section class="canvas" aria-label="眼睛图标绘制动画">
+        <svg viewBox="0 0 256 256" role="img" aria-label="智助侠眼睛入口">
+          <defs>
+            <radialGradient id="irisGlow" cx="50%" cy="48%" r="52%">
+              <stop offset="0%" stop-color="#FFF1DF"/>
+              <stop offset="16%" stop-color="#FFB562"/>
+              <stop offset="38%" stop-color="#D7412E"/>
+              <stop offset="66%" stop-color="#74131A"/>
+              <stop offset="100%" stop-color="#160306"/>
+            </radialGradient>
+          </defs>
+          <rect class="tile" x="20" y="20" width="216" height="216" rx="52" fill="var(--panel)"/>
+          <path class="eye-outline" d="M36 128C60 78 92 56 128 56s68 22 92 72c-24 50-56 72-92 72s-68-22-92-72Z"/>
+          <path class="inner-depth" d="M56 128C75 94 99 80 128 80s53 14 72 48c-19 34-43 48-72 48s-53-14-72-48Z" fill="#0A0304" fill-opacity="0.58"/>
+          <path class="vein" d="M61 119c18 3 30 8 42 18"/>
+          <path class="vein" d="M195 119c-18 3-30 8-42 18"/>
+          <path class="vein" d="M79 94c18 16 29 25 37 43"/>
+          <path class="vein" d="M177 94c-18 16-29 25-37 43"/>
+          <path class="vein" d="M83 163c15-13 25-21 39-27"/>
+          <path class="vein" d="M173 163c-15-13-25-21-39-27"/>
+          <circle class="iris" cx="128" cy="128" r="45" fill="url(#irisGlow)"/>
+          <circle class="iris" cx="128" cy="128" r="34" fill="none" stroke="#FFB562" stroke-opacity="0.18" stroke-width="5"/>
+          <circle class="pupil" cx="128" cy="128" r="17" fill="#101010"/>
+          <circle class="highlight" cx="140" cy="112" r="7" fill="#FFF8EA" fill-opacity="0.8"/>
+          <circle class="highlight" cx="117" cy="145" r="4" fill="#FFB562" fill-opacity="0.34"/>
+          <path class="upper-shine" d="M72 124c15-25 34-38 56-38s41 13 56 38"/>
+          <path class="lower-shadow" d="M64 151c19 22 41 33 64 33s45-11 64-33"/>
+        </svg>
+      </section>
+
+      <section class="steps" aria-label="绘制步骤">
+        <div class="step">入口底板</div>
+        <div class="step">魔眼轮廓</div>
+        <div class="step">血色瞳孔</div>
+        <div class="step">高光</div>
+      </section>
+    </main>
+  </body>
+</html>

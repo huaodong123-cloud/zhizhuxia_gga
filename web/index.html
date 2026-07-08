@@ -4,97 +4,201 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Game Guide Agent Lab</title>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="./styles.css">
   </head>
   <body>
-    <main class="shell">
-      <section class="side-tool" aria-label="Game guide side tool">
-        <header class="tool-header">
-          <div>
-            <p class="eyebrow">Multi-Agent Harness</p>
-            <h1>游戏攻略工作台</h1>
+    <svg aria-hidden="true" class="icon-sprite" focusable="false">
+      <symbol id="icon-panel" viewBox="0 0 24 24">
+        <rect x="3" y="4" width="18" height="16" rx="3"></rect>
+        <path d="M9 4v16"></path>
+      </symbol>
+      <symbol id="icon-chat" viewBox="0 0 24 24">
+        <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"></path>
+      </symbol>
+      <symbol id="icon-search" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="7"></circle>
+        <path d="m20 20-3.5-3.5"></path>
+      </symbol>
+      <symbol id="icon-brain" viewBox="0 0 24 24">
+        <path d="M9 5a3 3 0 0 0-5 2.2 3 3 0 0 0 1.2 5.4A3.4 3.4 0 0 0 9 18"></path>
+        <path d="M15 5a3 3 0 0 1 5 2.2 3 3 0 0 1-1.2 5.4A3.4 3.4 0 0 1 15 18"></path>
+        <path d="M9 5v13"></path>
+        <path d="M15 5v13"></path>
+        <path d="M9 9H7"></path>
+        <path d="M15 9h2"></path>
+      </symbol>
+      <symbol id="icon-route" viewBox="0 0 24 24">
+        <circle cx="6" cy="18" r="3"></circle>
+        <circle cx="18" cy="6" r="3"></circle>
+        <path d="M9 18h4a5 5 0 0 0 5-5v-4"></path>
+      </symbol>
+      <symbol id="icon-sword" viewBox="0 0 24 24">
+        <path d="m14.5 5.5 4-4 4 4-4 4"></path>
+        <path d="M18.5 9.5 8 20"></path>
+        <path d="m2 22 6-2-4-4z"></path>
+      </symbol>
+      <symbol id="icon-shield" viewBox="0 0 24 24">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+      </symbol>
+      <symbol id="icon-settings" viewBox="0 0 24 24">
+        <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"></path>
+        <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.1a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.6 1z"></path>
+      </symbol>
+      <symbol id="icon-plus" viewBox="0 0 24 24">
+        <path d="M12 5v14"></path>
+        <path d="M5 12h14"></path>
+      </symbol>
+      <symbol id="icon-send" viewBox="0 0 24 24">
+        <path d="m5 12 14-7-7 14-2-5z"></path>
+      </symbol>
+      <symbol id="icon-key" viewBox="0 0 24 24">
+        <circle cx="7.5" cy="14.5" r="4.5"></circle>
+        <path d="M11 11 21 1"></path>
+        <path d="m16 6 2 2"></path>
+        <path d="m19 3 2 2"></path>
+      </symbol>
+      <symbol id="icon-chevron" viewBox="0 0 24 24">
+        <path d="m9 18 6-6-6-6"></path>
+      </symbol>
+    </svg>
+
+    <main class="codex-shell">
+      <aside class="app-sidebar" aria-label="工作区导航">
+        <div class="sidebar-top">
+          <button class="icon-button" type="button" aria-label="切换侧边栏" title="切换侧边栏">
+            <svg><use href="#icon-panel"></use></svg>
+          </button>
+        </div>
+
+        <nav class="nav-stack" aria-label="主要功能">
+          <button class="nav-action is-active" type="button" aria-label="新对话" title="新对话">
+            <svg><use href="#icon-chat"></use></svg>
+            <span>新对话</span>
+          </button>
+          <button class="nav-action" type="button" aria-label="资料检索" title="资料检索">
+            <svg><use href="#icon-search"></use></svg>
+            <span>检索</span>
+          </button>
+          <button class="nav-action" type="button" aria-label="质量审查" title="质量审查">
+            <svg><use href="#icon-shield"></use></svg>
+            <span>审查</span>
+          </button>
+        </nav>
+
+        <section class="sidebar-section" aria-label="Agent">
+          <div class="sidebar-label">Agent</div>
+          <button class="thread-item is-active" type="button">
+            <svg><use href="#icon-brain"></use></svg>
+            <span>总控攻略代理</span>
+            <small>当前</small>
+          </button>
+          <button class="thread-item" type="button">
+            <svg><use href="#icon-search"></use></svg>
+            <span>资料猎手</span>
+          </button>
+          <button class="thread-item" type="button">
+            <svg><use href="#icon-route"></use></svg>
+            <span>路线规划</span>
+          </button>
+          <button class="thread-item" type="button">
+            <svg><use href="#icon-sword"></use></svg>
+            <span>战斗教练</span>
+          </button>
+        </section>
+      </aside>
+
+      <section class="workspace" aria-label="Game Guide Agent Lab">
+        <header class="workspace-header">
+          <div class="title-row">
+            <svg class="title-icon"><use href="#icon-chat"></use></svg>
+            <h1>智助侠</h1>
           </div>
-          <span class="model-pill">deepseek-v4</span>
+          <div class="header-actions">
+            <button id="settings-button" class="icon-button" type="button" aria-label="配置" title="配置">
+              <svg><use href="#icon-settings"></use></svg>
+            </button>
+          </div>
         </header>
 
-        <details class="settings-panel" open>
-          <summary>
-            <span>设置</span>
-            <span class="settings-hint">API Key / 模型</span>
-          </summary>
-          <form id="settings-form" class="settings-form">
-            <label>
-              DeepSeek API Key
-              <input name="apiKey" type="password" autocomplete="off" placeholder="仅本次会话使用，不保存">
+        <section id="login-view" class="login-view" aria-label="DeepSeek API Key">
+          <form id="login-form" class="login-card">
+            <div class="login-mark" aria-hidden="true">
+              <svg><use href="#icon-key"></use></svg>
+            </div>
+            <div class="login-copy">
+              <h2>智助侠</h2>
+              <p>输入你的 DeepSeek API Key。密钥仅保存在当前浏览器会话内存中。</p>
+            </div>
+            <label class="field">
+              <span>DeepSeek API Key</span>
+              <input id="api-key-input" type="password" autocomplete="off" placeholder="sk-..." required>
             </label>
-            <label>
-              模型
-              <input name="model" value="deepseek-v4" disabled>
-            </label>
+            <p id="login-error" class="error-text" aria-live="polite"></p>
+            <button class="primary icon-label-button" type="submit">
+              <span>进入</span>
+              <svg><use href="#icon-chevron"></use></svg>
+            </button>
           </form>
-        </details>
-
-        <form id="guide-form" class="input-grid">
-          <label>
-            游戏
-            <input name="gameName" placeholder="例如：Example RPG">
-          </label>
-          <label>
-            当前进度
-            <input name="progress" placeholder="例如：Level 42 / 第五章">
-          </label>
-          <label>
-            现有资源
-            <textarea name="resources" rows="2" placeholder="角色、装备、材料、每日时间"></textarea>
-          </label>
-          <label>
-            卡点
-            <textarea name="stuckPoint" rows="2" placeholder="打不过 Boss / 不知道练什么 / 路线混乱"></textarea>
-          </label>
-          <label>
-            目标
-            <input name="target" placeholder="例如：本周通关这个 Boss">
-          </label>
-
-          <div class="actions">
-            <button type="button" id="sample-button">样例</button>
-            <button type="reset">清空</button>
-            <button type="submit" class="primary">开始规划</button>
-          </div>
-        </form>
-
-        <section class="panel">
-          <div class="section-title">
-            <h2>Agents</h2>
-            <span id="run-status">idle</span>
-          </div>
-          <div id="agents" class="agent-list"></div>
         </section>
 
-        <section class="panel">
-          <div class="section-title">
-            <h2>Workflow</h2>
-          </div>
-          <ol id="workflow" class="timeline"></ol>
-        </section>
+        <section id="chat-view" class="chat-view" hidden>
+          <section id="settings-panel" class="settings-panel" hidden aria-label="配置面板">
+            <label class="field">
+              <span>DeepSeek API Key</span>
+              <input id="settings-api-key" type="password" autocomplete="off">
+            </label>
+            <label class="field">
+              <span>Model</span>
+              <input value="deepseek-v4-flash" disabled>
+            </label>
+            <button id="save-settings-button" class="icon-button" type="button" aria-label="保存配置" title="保存配置">
+              <svg><use href="#icon-shield"></use></svg>
+            </button>
+          </section>
 
-        <section class="panel result-panel">
-          <div class="section-title">
-            <h2>攻略</h2>
-            <button type="button" id="copy-button">复制</button>
-          </div>
-          <article id="guide" class="guide-output empty">等待一次规划运行。</article>
-        </section>
+          <section id="chat-panel" class="chat-panel" aria-label="聊天工作区">
+            <div class="control-strip">
+              <label class="compact-field">
+                <span>Agent</span>
+                <select id="agent-select">
+                  <option value="chief">总控攻略代理</option>
+                  <option value="research">资料检索</option>
+                  <option value="mechanics">机制分析代理</option>
+                  <option value="build">配装建议代理</option>
+                  <option value="route">路线规划代理</option>
+                  <option value="combat">战斗教练代理</option>
+                  <option value="critic">质量审查代理</option>
+                </select>
+              </label>
+              <label class="compact-field">
+                <span>Game</span>
+                <input id="game-name-input" placeholder="游戏名">
+              </label>
+            </div>
 
-        <section class="panel">
-          <div class="section-title">
-            <h2>Harness</h2>
-            <strong id="score">--</strong>
-          </div>
-          <ul id="issues" class="issue-list"></ul>
+            <section id="chat-stream" class="chat-stream" aria-live="polite">
+              <article class="message assistant welcome-message">
+                <div class="message-meta">总控攻略代理</div>
+                <div class="message-body">
+                  <p>告诉我游戏、进度、资源和卡点。我会先判断是否需要检索，再调度专家 Agent 给出攻略。</p>
+                </div>
+              </article>
+            </section>
+
+            <form id="chat-form" class="composer" aria-label="发送消息">
+              <button class="composer-tool" type="button" aria-label="添加上下文" title="添加上下文">
+                <svg><use href="#icon-plus"></use></svg>
+              </button>
+              <input id="message-input" placeholder="询问 Boss 打法、配装、路线或资源规划..." autocomplete="off">
+              <button class="send-button" type="submit" aria-label="发送" title="发送">
+                <svg><use href="#icon-send"></use></svg>
+              </button>
+            </form>
+          </section>
         </section>
       </section>
     </main>
-    <script src="/app.js" type="module"></script>
+
+    <script src="./app.js" type="module"></script>
   </body>
 </html>
