@@ -7,7 +7,7 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationIcon>assets\icons\zhizhuxia-spider-eye.ico</ApplicationIcon>
-    <AssemblyName>Zhizhuxia.Desktop</AssemblyName>
+    <AssemblyName>智助侠</AssemblyName>
     <Product>智助侠</Product>
     <Version>0.0.1-demo</Version>
     <FileVersion>0.0.1.0</FileVersion>

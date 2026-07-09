@@ -25,6 +25,7 @@ var tests = new List<(string Name, Func<Task> Run)>
     ("SettingsWindow is modern frameless and local settings persist with API key cache", SettingsWindowIsFramelessAndLocalSettingsPersistWithApiKeyCache),
     ("TrayMenuFactory exposes expected commands", TrayMenuFactoryExposesExpectedCommands),
     ("LoginState rejects empty API keys", LoginStateRejectsEmptyApiKeys),
+    ("Desktop executable name is localized as Zhizhuxia", DesktopExecutableNameIsLocalizedAsZhizhuxia),
     ("Desktop executable uses the spider-eye application icon", DesktopExecutableUsesSpiderEyeApplicationIcon),
     ("Desktop publish includes local server files for double-click exe startup", DesktopPublishIncludesLocalServerFilesForDoubleClickStartup),
     ("LocalServerService detects healthy existing server", LocalServerServiceDetectsHealthyServer),
@@ -423,6 +424,15 @@ static Task LoginStateRejectsEmptyApiKeys()
     Assert(!LoginState.CanEnterChat(""), "empty key accepted");
     Assert(!LoginState.CanEnterChat("   "), "blank key accepted");
     Assert(LoginState.CanEnterChat("sk-test"), "non-empty key rejected");
+    return Task.CompletedTask;
+}
+
+static Task DesktopExecutableNameIsLocalizedAsZhizhuxia()
+{
+    var project = File.ReadAllText(Path.Combine("desktop", "Zhizhuxia.Desktop.csproj"));
+
+    Assert(project.Contains("<AssemblyName>智助侠</AssemblyName>", StringComparison.Ordinal), "published exe should be named 智助侠.exe");
+
     return Task.CompletedTask;
 }
 

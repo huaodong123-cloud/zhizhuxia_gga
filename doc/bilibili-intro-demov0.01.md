@@ -213,7 +213,7 @@ dist/zhizhuxia-demov0.01-concept-win.zip
 
 1. 下载并解压 `zhizhuxia-demov0.01-concept-win.zip`。
 2. 打开解压后的文件夹。
-3. 双击 `Zhizhuxia.Desktop.exe`。
+3. 双击 `智助侠.exe`。
 4. 在 Windows 右下角托盘隐藏图标中找到智助侠图标。
 5. 右键图标，进入配置。
 6. 填写智谱 API Key 并保存。
