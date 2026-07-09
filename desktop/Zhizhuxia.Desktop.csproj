@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationIcon>assets\icons\zhizhuxia-spider-eye.ico</ApplicationIcon>
     <AssemblyName>Zhizhuxia.Desktop</AssemblyName>
     <Product>智助侠</Product>
     <Version>0.0.1-demo</Version>

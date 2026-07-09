@@ -25,6 +25,7 @@ var tests = new List<(string Name, Func<Task> Run)>
     ("SettingsWindow is modern frameless and local settings persist with API key cache", SettingsWindowIsFramelessAndLocalSettingsPersistWithApiKeyCache),
     ("TrayMenuFactory exposes expected commands", TrayMenuFactoryExposesExpectedCommands),
     ("LoginState rejects empty API keys", LoginStateRejectsEmptyApiKeys),
+    ("Desktop executable uses the spider-eye application icon", DesktopExecutableUsesSpiderEyeApplicationIcon),
     ("Desktop publish includes local server files for double-click exe startup", DesktopPublishIncludesLocalServerFilesForDoubleClickStartup),
     ("LocalServerService detects healthy existing server", LocalServerServiceDetectsHealthyServer),
     ("LocalServerService rejects stale non-GLM health responses", LocalServerServiceRejectsStaleHealthResponses),
@@ -422,6 +423,16 @@ static Task LoginStateRejectsEmptyApiKeys()
     Assert(!LoginState.CanEnterChat(""), "empty key accepted");
     Assert(!LoginState.CanEnterChat("   "), "blank key accepted");
     Assert(LoginState.CanEnterChat("sk-test"), "non-empty key rejected");
+    return Task.CompletedTask;
+}
+
+static Task DesktopExecutableUsesSpiderEyeApplicationIcon()
+{
+    var project = File.ReadAllText(Path.Combine("desktop", "Zhizhuxia.Desktop.csproj"));
+
+    Assert(project.Contains("<ApplicationIcon>assets\\icons\\zhizhuxia-spider-eye.ico</ApplicationIcon>", StringComparison.Ordinal), "application icon should point to the spider-eye ico");
+    Assert(File.Exists(Path.Combine("desktop", "assets", "icons", "zhizhuxia-spider-eye.ico")), "spider-eye ico file missing");
+
     return Task.CompletedTask;
 }
 
