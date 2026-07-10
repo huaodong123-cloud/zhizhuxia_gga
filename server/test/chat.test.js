@@ -58,6 +58,82 @@ test('three-layer intent funnel routes screenshot build questions through vision
   assert.equal(response.usedAgents.includes('build'), true);
 });
 
+test('smalltalk greetings route to chat answer without research', async () => {
+  let researchCalled = false;
+  let modelCalled = false;
+
+  const response = await createChatResponse({
+    apiKey: 'sk-test',
+    agentId: 'chief',
+    message: '你好',
+    gameName: 'Example RPG'
+  }, {
+    researchClient: async () => {
+      researchCalled = true;
+      return { checkedSources: [], searchQuery: '', sources: [], failures: [] };
+    },
+    modelClient: async () => {
+      modelCalled = true;
+      return {
+        answer: '你好，我在。',
+        usage: { total_tokens: 6 }
+      };
+    }
+  });
+
+  assert.equal(response.status, 'completed');
+  assert.equal(response.intent, 'smalltalk');
+  assert.equal(response.intentFunnel.taskType, 'smalltalk');
+  assert.equal(response.intentFunnel.executionType, 'chat_answer');
+  assert.deepEqual(response.workflowStages, ['intent', 'answer']);
+  assert.equal(researchCalled, false);
+  assert.equal(modelCalled, true);
+});
+
+test('meaningless short or gibberish input is rejected before workflow routing', async () => {
+  let researchCalled = false;
+  let modelCalled = false;
+
+  const shortResponse = await createChatResponse({
+    apiKey: 'sk-test',
+    agentId: 'chief',
+    message: '1',
+    gameName: 'Example RPG'
+  }, {
+    researchClient: async () => {
+      researchCalled = true;
+      return { checkedSources: [], searchQuery: '', sources: [], failures: [] };
+    },
+    modelClient: async () => {
+      modelCalled = true;
+      return { answer: 'should not run', usage: { total_tokens: 1 } };
+    }
+  });
+
+  const gibberishResponse = await createChatResponse({
+    apiKey: 'sk-test',
+    agentId: 'chief',
+    message: 'xaaidhahd',
+    gameName: 'Example RPG'
+  }, {
+    researchClient: async () => {
+      researchCalled = true;
+      return { checkedSources: [], searchQuery: '', sources: [], failures: [] };
+    },
+    modelClient: async () => {
+      modelCalled = true;
+      return { answer: 'should not run', usage: { total_tokens: 1 } };
+    }
+  });
+
+  assert.equal(shortResponse.status, 'failed');
+  assert.equal(shortResponse.intent, 'rejected');
+  assert.equal(gibberishResponse.status, 'failed');
+  assert.equal(gibberishResponse.intent, 'rejected');
+  assert.equal(researchCalled, false);
+  assert.equal(modelCalled, false);
+});
+
 test('three-layer intent funnel routes text farming questions through route research answer', async () => {
   let receivedResearchInput = null;
 

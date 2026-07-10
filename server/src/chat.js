@@ -90,6 +90,15 @@ const AGENT_WORKFLOWS = {
     researchFocus: '先补齐上下文，再给通用攻略建议。',
     answerPolicy: '保持简洁，明确假设和下一步。',
     stages: ['workflow:general', 'research:general', 'answer:general', 'critic']
+  },
+  smalltalk: {
+    id: 'smalltalk',
+    ownerAgentId: 'chief',
+    label: '闲聊接待工作流',
+    researchKeywords: [],
+    researchFocus: '不进行联网检索，只做简短接待和引导。',
+    answerPolicy: '简短回应，并提示用户可以输入游戏问题或截图。',
+    stages: ['workflow:smalltalk', 'answer:smalltalk']
   }
 };
 
@@ -209,7 +218,60 @@ function matchTaskFunnel(message = '') {
   };
 }
 
+function isSmalltalkMessage(message = '') {
+  return /^(你好|您好|在吗|嗨|哈喽|hello|hi|hey)[。！？!?\s.]*$/i.test(String(message || '').trim());
+}
+
+function isMeaninglessMessage(message = '') {
+  const text = String(message || '').trim();
+  if (!text) return false;
+  if (/^\d+$/.test(text)) return true;
+  if (text.length <= 1) return true;
+
+  const knownSingleToken = /^(boss|build|gear|route|farm|daily|material|weapon|team|fight|help|guide|quest|map|artifact)$/i;
+  if (/^[a-z]{6,16}$/i.test(text) && !knownSingleToken.test(text)) {
+    return true;
+  }
+
+  return false;
+}
+
 export function identifyWorkflowIntent({ message = '', screenshot = null }) {
+  if (!screenshot && isSmalltalkMessage(message)) {
+    return {
+      type: 'smalltalk',
+      items: [],
+      inputType: 'text_question',
+      taskType: 'smalltalk',
+      executionType: 'chat_answer',
+      recommendedAgentId: 'chief',
+      confidence: 'high',
+      layers: [
+        { layer: 'input', type: 'text_question', confidence: 'high', signals: ['greeting'] },
+        { layer: 'task', type: 'smalltalk', confidence: 'high', signals: ['smalltalk'] },
+        { layer: 'execution', type: 'chat_answer', confidence: 'high', signals: ['answer'] }
+      ]
+    };
+  }
+
+  if (!screenshot && isMeaninglessMessage(message)) {
+    return {
+      type: 'rejected',
+      items: [],
+      inputType: 'text_question',
+      taskType: 'rejected',
+      executionType: 'reject',
+      recommendedAgentId: 'chief',
+      confidence: 'high',
+      rejectionReason: '输入内容太短或缺少可识别的游戏问题，请补充具体目标、截图或上下文。',
+      layers: [
+        { layer: 'input', type: 'text_question', confidence: 'high', signals: ['low-information'] },
+        { layer: 'task', type: 'rejected', confidence: 'high', signals: ['meaningless'] },
+        { layer: 'execution', type: 'reject', confidence: 'high', signals: ['no-workflow'] }
+      ]
+    };
+  }
+
   const ranking = identifyChatIntent(message);
   if (ranking.type === 'ranking') {
     return {
@@ -374,6 +436,7 @@ export async function createChatResponse(input = {}, {
     executionType: intent.executionType,
     recommendedAgentId: intent.recommendedAgentId,
     confidence: intent.confidence,
+    rejectionReason: intent.rejectionReason,
     layers: intent.layers
   };
   const errors = [];
@@ -391,6 +454,19 @@ export async function createChatResponse(input = {}, {
       model: modelProfile.id,
       modelCapabilities: modelProfile.capabilities,
       imagesUsed: screenshot ? 1 : 0,
+      workflowStages: ['intent']
+    };
+  }
+
+  if (intent.type === 'rejected') {
+    return {
+      status: 'failed',
+      errors: [intent.rejectionReason],
+      intent: intent.type,
+      intentFunnel,
+      model: modelProfile.id,
+      modelCapabilities: modelProfile.capabilities,
+      imagesUsed: 0,
       workflowStages: ['intent']
     };
   }
@@ -431,6 +507,80 @@ export async function createChatResponse(input = {}, {
       modelCapabilities: modelProfile.capabilities,
       imagesUsed: screenshot ? 1 : 0,
       workflowStages: ['intent', 'rank']
+    };
+
+    response.harness = evaluateChatAnswer({
+      apiKey,
+      selectedAgent: agentId,
+      message,
+      response
+    });
+
+    return response;
+  }
+
+  if (intent.type === 'smalltalk') {
+    const check = {
+      confidence: 'high',
+      needResearch: false,
+      reason: '识别为闲聊接待，不需要联网检索。'
+    };
+    const agentWorkflow = selectAgentWorkflow({ agentId, intentFunnel });
+    const activeWorkflow = serializeAgentWorkflow(agentWorkflow);
+    const usedAgents = agentId === 'chief' ? ['chief'] : [agentId];
+    const workflowStages = ['intent', 'answer'];
+    const messages = buildMessages({
+      agentId,
+      message,
+      gameName,
+      check,
+      sources: [],
+      failures: [],
+      usedAgents,
+      modelProfile,
+      images: [],
+      visionAnalysis: null,
+      intentFunnel,
+      agentWorkflow: activeWorkflow
+    });
+
+    let modelResult;
+    try {
+      modelResult = await modelClient({ apiKey, model: modelProfile.id, messages, modelProfile });
+    } catch (error) {
+      return {
+        status: 'failed',
+        errors: [error.message],
+        intent: intent.type,
+        intentFunnel
+      };
+    }
+
+    const response = {
+      status: 'completed',
+      model: modelProfile.id,
+      intent: intent.type,
+      intentFunnel,
+      activeWorkflow,
+      agentWorkflowStages: activeWorkflow.stages,
+      agentId,
+      confidence: check.confidence,
+      needResearch: false,
+      knowledgeCheck: check,
+      usedAgents,
+      sources: [],
+      researchFailures: [],
+      checkedSources: [],
+      searchQuery: '',
+      visionAnalysis: null,
+      workflowStages,
+      answer: modelResult.answer,
+      modelCapabilities: modelProfile.capabilities,
+      imagesUsed: 0,
+      provider: {
+        model: modelResult.model || modelProfile.id,
+        usage: modelResult.usage || null
+      }
     };
 
     response.harness = evaluateChatAnswer({
