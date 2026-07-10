@@ -18,6 +18,81 @@ export const CHAT_AGENTS = [
 const VALID_AGENT_IDS = new Set(CHAT_AGENTS.map((agent) => agent.id));
 const AGENT_LABELS = Object.fromEntries(CHAT_AGENTS.map((agent) => [agent.id, agent.name]));
 
+const AGENT_WORKFLOWS = {
+  chief: {
+    id: 'chief',
+    ownerAgentId: 'chief',
+    label: '总控规划工作流',
+    researchKeywords: ['攻略', '路线', '机制', '配装'],
+    researchFocus: '先扩展问题上下文，再综合多类资料给出总控建议。',
+    answerPolicy: '先给结论，再拆成可执行步骤，并明确需要补充的信息。',
+    stages: ['workflow:chief', 'research:chief', 'answer:chief', 'critic']
+  },
+  research: {
+    id: 'research',
+    ownerAgentId: 'research',
+    label: '资料检索工作流',
+    researchKeywords: ['最新攻略', '资料', '来源', '版本'],
+    researchFocus: '优先检索来源、版本、发布时间和可核验资料。',
+    answerPolicy: '先说明来源可靠性，再总结资料差异，不伪造来源。',
+    stages: ['workflow:research', 'research:research', 'answer:research', 'critic']
+  },
+  mechanics: {
+    id: 'mechanics',
+    ownerAgentId: 'mechanics',
+    label: '机制分析工作流',
+    researchKeywords: ['机制', '阶段', '触发', '规则'],
+    researchFocus: '优先查机制触发条件、阶段变化、数值规则和版本差异。',
+    answerPolicy: '按触发条件、危险点、应对动作解释机制。',
+    stages: ['workflow:mechanics', 'research:mechanics', 'answer:mechanics', 'critic']
+  },
+  build: {
+    id: 'build',
+    ownerAgentId: 'build',
+    label: '配装工作流',
+    researchKeywords: ['gear build', '配装', '装备', '武器', '队伍'],
+    researchFocus: '优先查装备搭配、武器选择、角色定位和队伍协同。',
+    answerPolicy: '按当前问题给出优先级、替代项、养成顺序和不推荐项。',
+    stages: ['workflow:build', 'research:build', 'answer:build', 'critic']
+  },
+  route: {
+    id: 'route',
+    ownerAgentId: 'route',
+    label: '路线规划工作流',
+    researchKeywords: ['farming route', '路线', '材料', '日常', '效率'],
+    researchFocus: '优先查材料位置、刷新周期、路线顺序和时间效率。',
+    answerPolicy: '按起点、路径、优先级和替代路线输出。',
+    stages: ['workflow:route', 'research:route', 'answer:route', 'critic']
+  },
+  combat: {
+    id: 'combat',
+    ownerAgentId: 'combat',
+    label: '战斗教练工作流',
+    researchKeywords: ['combat', 'boss', 'rotation', '战斗', '首领', '破盾'],
+    researchFocus: '优先查首领机制、技能轴、输出窗口、破盾和走位。',
+    answerPolicy: '按战前准备、战斗节奏、关键动作和失误修正输出。',
+    stages: ['workflow:combat', 'research:combat', 'answer:combat', 'critic']
+  },
+  critic: {
+    id: 'critic',
+    ownerAgentId: 'critic',
+    label: '质量审查工作流',
+    researchKeywords: ['验证', '来源', '版本', '风险'],
+    researchFocus: '优先核对来源、版本风险和回答中可能过度断言的部分。',
+    answerPolicy: '指出不确定性、缺失来源和需要用户复核的点。',
+    stages: ['workflow:critic', 'research:critic', 'answer:critic', 'critic']
+  },
+  general: {
+    id: 'general',
+    ownerAgentId: 'chief',
+    label: '通用问答工作流',
+    researchKeywords: ['攻略', '建议'],
+    researchFocus: '先补齐上下文，再给通用攻略建议。',
+    answerPolicy: '保持简洁，明确假设和下一步。',
+    stages: ['workflow:general', 'research:general', 'answer:general', 'critic']
+  }
+};
+
 function knowledgeCheck(message = '') {
   const lower = message.toLowerCase();
   const patchSpecific = ['newest', 'latest', 'patch', 'version', 'changed', 'current', '最新版', '版本', '补丁'].some((word) => lower.includes(word));
@@ -195,7 +270,37 @@ function buildSearchQuery({ gameName, message, visionAnalysis }) {
   ].filter(Boolean).join(' ').trim();
 }
 
-function buildMessages({ agentId, message, gameName, check, sources, failures, usedAgents, modelProfile, images, visionAnalysis, intentFunnel }) {
+function selectAgentWorkflow({ agentId, intentFunnel }) {
+  if (agentId && !['chief', 'critic'].includes(agentId) && AGENT_WORKFLOWS[agentId]) {
+    return AGENT_WORKFLOWS[agentId];
+  }
+
+  const workflowId = intentFunnel?.taskType && AGENT_WORKFLOWS[intentFunnel.taskType]
+    ? intentFunnel.taskType
+    : intentFunnel?.recommendedAgentId;
+
+  return AGENT_WORKFLOWS[workflowId] || AGENT_WORKFLOWS[agentId] || AGENT_WORKFLOWS.general;
+}
+
+function serializeAgentWorkflow(workflow) {
+  return {
+    id: workflow.id,
+    ownerAgentId: workflow.ownerAgentId,
+    label: workflow.label,
+    researchFocus: workflow.researchFocus,
+    answerPolicy: workflow.answerPolicy,
+    stages: workflow.stages
+  };
+}
+
+function buildWorkflowSearchQuery({ gameName, message, visionAnalysis, workflow }) {
+  return [
+    buildSearchQuery({ gameName, message, visionAnalysis }),
+    ...(workflow?.researchKeywords || [])
+  ].filter(Boolean).join(' ').trim();
+}
+
+function buildMessages({ agentId, message, gameName, check, sources, failures, usedAgents, modelProfile, images, visionAnalysis, intentFunnel, agentWorkflow }) {
   const sourceText = sources.length
     ? sources.map((source) => `- ${source.source}：${source.title}。${source.summary}`).join('\n')
     : '没有外部来源卡片。';
@@ -231,6 +336,9 @@ function buildMessages({ agentId, message, gameName, check, sources, failures, u
         `当前模型：${modelProfile.id}。`,
         `当前代理：${AGENT_LABELS[agentId] || agentId}。`,
         `参与代理：${usedAgents.map((id) => AGENT_LABELS[id] || id).join('、')}。`,
+        agentWorkflow ? `当前工作流：${agentWorkflow.label}。` : '',
+        agentWorkflow ? `检索重点：${agentWorkflow.researchFocus}` : '',
+        agentWorkflow ? `回答策略：${agentWorkflow.answerPolicy}` : '',
         '请用中文回答，不要使用英文界面词。',
         '如果信息可能过期，请说明不确定性。',
         '回答要具体、可执行，避免空泛建议。',
@@ -336,6 +444,8 @@ export async function createChatResponse(input = {}, {
   }
 
   const check = knowledgeCheck(message);
+  const agentWorkflow = selectAgentWorkflow({ agentId, intentFunnel });
+  const activeWorkflow = serializeAgentWorkflow(agentWorkflow);
   const usedAgents = agentId === 'chief' ? selectChiefSpecialists(message, intentFunnel) : [agentId];
   const workflowStages = ['intent'];
   let visionAnalysis = null;
@@ -367,7 +477,7 @@ export async function createChatResponse(input = {}, {
   }
 
   workflowStages.push('research');
-  const requestedSearchQuery = buildSearchQuery({ gameName, message, visionAnalysis });
+  const requestedSearchQuery = buildWorkflowSearchQuery({ gameName, message, visionAnalysis, workflow: agentWorkflow });
   const research = await researchClient({
     gameName,
     message,
@@ -376,6 +486,7 @@ export async function createChatResponse(input = {}, {
     agentId,
     intent: intent.type,
     intentFunnel,
+    agentWorkflow: activeWorkflow,
     visionAnalysis
   });
   const searchQuery = research.searchQuery || requestedSearchQuery;
@@ -390,7 +501,8 @@ export async function createChatResponse(input = {}, {
     modelProfile,
     images: [],
     visionAnalysis,
-    intentFunnel
+    intentFunnel,
+    agentWorkflow: activeWorkflow
   });
 
   let modelResult;
@@ -409,6 +521,8 @@ export async function createChatResponse(input = {}, {
     model: modelProfile.id,
     intent: intent.type,
     intentFunnel,
+    activeWorkflow,
+    agentWorkflowStages: activeWorkflow.stages,
     agentId,
     confidence: check.confidence,
     needResearch: check.needResearch,

@@ -93,6 +93,77 @@ test('three-layer intent funnel routes text farming questions through route rese
   assert.equal(response.usedAgents.includes('route'), true);
 });
 
+test('build agent workflow drives research focus and answer policy', async () => {
+  let receivedResearchInput = null;
+  let receivedMessages = [];
+
+  const response = await createChatResponse({
+    apiKey: 'sk-test',
+    agentId: 'chief',
+    message: 'optimize my gear build for this boss',
+    gameName: 'Example RPG'
+  }, {
+    researchClient: async (input) => {
+      receivedResearchInput = input;
+      return {
+        checkedSources: ['bilibili', 'xiaoheihe'],
+        searchQuery: input.searchQuery,
+        sources: [],
+        failures: []
+      };
+    },
+    modelClient: async ({ messages }) => {
+      receivedMessages = messages;
+      return {
+        answer: 'Use the build workflow answer.',
+        usage: { total_tokens: 12 }
+      };
+    }
+  });
+
+  assert.equal(response.status, 'completed');
+  assert.equal(response.activeWorkflow.id, 'build');
+  assert.equal(response.activeWorkflow.ownerAgentId, 'build');
+  assert.equal(receivedResearchInput.agentWorkflow.id, 'build');
+  assert.match(receivedResearchInput.searchQuery, /gear build/);
+  assert.match(receivedResearchInput.searchQuery, /配装/);
+  assert.match(receivedMessages.find((message) => message.role === 'system').content, /配装工作流/);
+  assert.deepEqual(response.agentWorkflowStages, ['workflow:build', 'research:build', 'answer:build', 'critic']);
+});
+
+test('manual specialist agent selection overrides the funnel workflow', async () => {
+  let receivedResearchInput = null;
+
+  const response = await createChatResponse({
+    apiKey: 'sk-test',
+    agentId: 'combat',
+    message: 'best farming route for daily materials',
+    gameName: 'Example RPG'
+  }, {
+    researchClient: async (input) => {
+      receivedResearchInput = input;
+      return {
+        checkedSources: ['bilibili', 'xiaoheihe'],
+        searchQuery: input.searchQuery,
+        sources: [],
+        failures: []
+      };
+    },
+    modelClient: async () => ({
+      answer: 'Use the combat workflow answer.',
+      usage: { total_tokens: 14 }
+    })
+  });
+
+  assert.equal(response.status, 'completed');
+  assert.equal(response.intentFunnel.taskType, 'route');
+  assert.equal(response.activeWorkflow.id, 'combat');
+  assert.deepEqual(response.usedAgents, ['combat']);
+  assert.equal(receivedResearchInput.agentWorkflow.id, 'combat');
+  assert.match(receivedResearchInput.searchQuery, /combat/);
+  assert.match(receivedResearchInput.searchQuery, /战斗/);
+});
+
 test('ranking intent in chat calls rank tool instead of normal chat model', async () => {
   let modelCalled = false;
   let receivedRankInput = null;
