@@ -16,6 +16,7 @@ var tests = new List<(string Name, Func<Task> Run)>
     ("MainWindow uses dark combo box item styling", MainWindowUsesDarkComboBoxItemStyling),
     ("MainWindow keeps settings out of the in-game panel", MainWindowKeepsSettingsOutOfInGamePanel),
     ("MainWindow starts directly in chat without a login gate", MainWindowStartsDirectlyInChatWithoutLoginGate),
+    ("MainWindow starts with an empty chat stream", MainWindowStartsWithEmptyChatStream),
     ("MainWindow follows the HUD prototype visual direction", MainWindowFollowsHudPrototypeVisualDirection),
     ("MainWindow uses a rounded rectangle top bar", MainWindowUsesRoundedRectangleTopBar),
     ("MainWindow uses icon-only composer actions", MainWindowUsesIconOnlyComposerActions),
@@ -265,6 +266,17 @@ static Task MainWindowStartsDirectlyInChatWithoutLoginGate()
     Assert(!xaml.Contains("ApiKeyBox", StringComparison.Ordinal), "in-game API key input should be removed");
     Assert(!xaml.Contains("进入智助侠", StringComparison.Ordinal), "login enter button should be removed");
     Assert(!xaml.Contains("ChatView\" Visibility=\"Collapsed", StringComparison.Ordinal), "chat view should not start collapsed");
+
+    return Task.CompletedTask;
+}
+
+static Task MainWindowStartsWithEmptyChatStream()
+{
+    var xaml = File.ReadAllText(Path.Combine("desktop", "MainWindow.xaml"));
+
+    Assert(xaml.Contains("x:Name=\"MessageStack\"", StringComparison.Ordinal), "message stack should exist");
+    Assert(!xaml.Contains("总控攻略代理", StringComparison.Ordinal), "startup guide bubble title should be removed");
+    Assert(!xaml.Contains("告诉我游戏、进度、资源和卡点", StringComparison.Ordinal), "startup guide bubble copy should be removed");
 
     return Task.CompletedTask;
 }

@@ -304,17 +304,6 @@
                         Margin="14,0"
                         VerticalScrollBarVisibility="Auto">
             <StackPanel x:Name="MessageStack" Margin="0,6,0,14">
-              <Border Padding="13"
-                      Background="Transparent"
-                      BorderBrush="Transparent"
-                      BorderThickness="1"
-                      CornerRadius="12"
-                      Margin="0,0,42,12">
-                <StackPanel>
-                  <TextBlock Text="总控攻略代理" Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,0,0,6" />
-                  <TextBlock Text="告诉我游戏、进度、资源和卡点。我会判断意图、读截图、检索资料，然后给出结论。" LineHeight="21" />
-                </StackPanel>
-              </Border>
             </StackPanel>
           </ScrollViewer>
 
