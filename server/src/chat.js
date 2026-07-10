@@ -37,9 +37,13 @@ function knowledgeCheck(message = '') {
   };
 }
 
-function selectChiefSpecialists(message = '') {
+function selectChiefSpecialists(message = '', intentFunnel = null) {
   const lower = message.toLowerCase();
   const agents = ['research'];
+
+  if (intentFunnel?.recommendedAgentId && intentFunnel.recommendedAgentId !== 'chief') {
+    agents.push(intentFunnel.recommendedAgentId);
+  }
 
   if (/boss|phase|mechanic|patch|changed|fire|首领|阶段|机制|版本|火/i.test(lower)) agents.push('mechanics');
   if (/team|build|gear|character|weapon|loadout|队伍|配装|装备|角色|武器/i.test(lower)) agents.push('build');
@@ -47,7 +51,8 @@ function selectChiefSpecialists(message = '') {
   if (/boss|fight|combat|rotation|phase|fire|首领|战斗|循环|阶段|火/i.test(lower)) agents.push('combat');
 
   agents.push('critic');
-  return [...new Set(agents)];
+  const selected = new Set(agents);
+  return ['research', 'mechanics', 'build', 'route', 'combat', 'critic'].filter((id) => selected.has(id));
 }
 
 function splitCandidateItems(value = '') {
@@ -79,15 +84,106 @@ export function identifyChatIntent(message = '') {
   };
 }
 
-function identifyWorkflowIntent({ message = '', screenshot = null }) {
-  const ranking = identifyChatIntent(message);
-  if (ranking.type === 'ranking') {
-    return ranking;
+const TASK_FUNNEL_RULES = [
+  {
+    type: 'build',
+    recommendedAgentId: 'build',
+    patterns: [/build/i, /gear/i, /weapon/i, /loadout/i, /team/i, /character/i, /equipment/i, /配装|装备|武器|队伍|角色/u]
+  },
+  {
+    type: 'route',
+    recommendedAgentId: 'route',
+    patterns: [/route/i, /farm/i, /daily/i, /material/i, /path/i, /resource/i, /路线|刷|材料|日常/u]
+  },
+  {
+    type: 'combat',
+    recommendedAgentId: 'combat',
+    patterns: [/boss/i, /fight/i, /combat/i, /rotation/i, /shield/i, /dodge/i, /parry/i, /首领|战斗|循环|破盾/u]
+  },
+  {
+    type: 'mechanics',
+    recommendedAgentId: 'mechanics',
+    patterns: [/mechanic/i, /phase/i, /rule/i, /trigger/i, /patch/i, /version/i, /机制|阶段|版本|触发/u]
+  },
+  {
+    type: 'research',
+    recommendedAgentId: 'research',
+    patterns: [/latest/i, /newest/i, /current/i, /guide/i, /source/i, /最新|攻略|资料/u]
+  }
+];
+
+function matchTaskFunnel(message = '') {
+  const text = String(message || '');
+  for (const rule of TASK_FUNNEL_RULES) {
+    const matched = rule.patterns.filter((pattern) => pattern.test(text));
+    if (matched.length) {
+      return {
+        type: rule.type,
+        recommendedAgentId: rule.recommendedAgentId,
+        confidence: matched.length > 1 ? 'high' : 'medium',
+        signals: matched.map((pattern) => pattern.source)
+      };
+    }
   }
 
   return {
-    type: screenshot ? 'screenshot_question' : 'text_question',
-    items: []
+    type: 'general',
+    recommendedAgentId: 'chief',
+    confidence: 'low',
+    signals: []
+  };
+}
+
+export function identifyWorkflowIntent({ message = '', screenshot = null }) {
+  const ranking = identifyChatIntent(message);
+  if (ranking.type === 'ranking') {
+    return {
+      ...ranking,
+      inputType: 'ranking',
+      taskType: 'ranking',
+      executionType: 'rank',
+      recommendedAgentId: 'critic',
+      confidence: 'high',
+      layers: [
+        { layer: 'input', type: 'ranking', confidence: 'high', signals: ['ranking-keyword'] },
+        { layer: 'task', type: 'ranking', confidence: 'high', signals: ['candidate-list'] },
+        { layer: 'execution', type: 'rank', confidence: 'high', signals: ['rank-tool'] }
+      ]
+    };
+  }
+
+  const inputType = screenshot ? 'screenshot_question' : 'text_question';
+  const task = matchTaskFunnel(message);
+  const executionType = screenshot ? 'vision_research_answer' : 'research_answer';
+
+  return {
+    type: inputType,
+    items: [],
+    inputType,
+    taskType: task.type,
+    executionType,
+    recommendedAgentId: task.recommendedAgentId,
+    confidence: task.confidence,
+    layers: [
+      {
+        layer: 'input',
+        type: inputType,
+        confidence: screenshot ? 'high' : 'medium',
+        signals: screenshot ? ['screenshot'] : ['text']
+      },
+      {
+        layer: 'task',
+        type: task.type,
+        confidence: task.confidence,
+        signals: task.signals
+      },
+      {
+        layer: 'execution',
+        type: executionType,
+        confidence: screenshot ? 'high' : 'medium',
+        signals: screenshot ? ['vision', 'research', 'answer'] : ['research', 'answer']
+      }
+    ]
   };
 }
 
@@ -99,7 +195,7 @@ function buildSearchQuery({ gameName, message, visionAnalysis }) {
   ].filter(Boolean).join(' ').trim();
 }
 
-function buildMessages({ agentId, message, gameName, check, sources, failures, usedAgents, modelProfile, images, visionAnalysis }) {
+function buildMessages({ agentId, message, gameName, check, sources, failures, usedAgents, modelProfile, images, visionAnalysis, intentFunnel }) {
   const sourceText = sources.length
     ? sources.map((source) => `- ${source.source}：${source.title}。${source.summary}`).join('\n')
     : '没有外部来源卡片。';
@@ -107,6 +203,7 @@ function buildMessages({ agentId, message, gameName, check, sources, failures, u
   const userText = [
     `游戏：${gameName || '未提供'}`,
     `用户问题：${message}`,
+    intentFunnel ? `意图漏斗：${intentFunnel.inputType} -> ${intentFunnel.taskType} -> ${intentFunnel.executionType}` : '',
     visionAnalysis?.summary ? `截图分析：${visionAnalysis.summary}` : '',
     visionAnalysis?.observations?.length ? `截图观察：${visionAnalysis.observations.join('；')}` : '',
     `知识判断：置信度 ${check.confidence}；是否需要检索资料：${check.needResearch ? '是' : '否'}；原因：${check.reason}`,
@@ -163,6 +260,14 @@ export async function createChatResponse(input = {}, {
   const images = normalizeImageInputs(input.images);
   const screenshot = normalizeScreenshotInput(input.screenshot) || images[0] || null;
   const intent = identifyWorkflowIntent({ message, screenshot });
+  const intentFunnel = {
+    inputType: intent.inputType,
+    taskType: intent.taskType,
+    executionType: intent.executionType,
+    recommendedAgentId: intent.recommendedAgentId,
+    confidence: intent.confidence,
+    layers: intent.layers
+  };
   const errors = [];
 
   if (!apiKey) errors.push('API key is required');
@@ -174,6 +279,7 @@ export async function createChatResponse(input = {}, {
       status: 'failed',
       errors,
       intent: intent.type,
+      intentFunnel,
       model: modelProfile.id,
       modelCapabilities: modelProfile.capabilities,
       imagesUsed: screenshot ? 1 : 0,
@@ -196,6 +302,7 @@ export async function createChatResponse(input = {}, {
     const response = {
       status: 'completed',
       intent: 'ranking',
+      intentFunnel,
       model: modelProfile.id,
       agentId,
       confidence: 'high',
@@ -229,7 +336,7 @@ export async function createChatResponse(input = {}, {
   }
 
   const check = knowledgeCheck(message);
-  const usedAgents = agentId === 'chief' ? selectChiefSpecialists(message) : [agentId];
+  const usedAgents = agentId === 'chief' ? selectChiefSpecialists(message, intentFunnel) : [agentId];
   const workflowStages = ['intent'];
   let visionAnalysis = null;
 
@@ -250,6 +357,7 @@ export async function createChatResponse(input = {}, {
         status: 'failed',
         errors: [error.message],
         intent: intent.type,
+        intentFunnel,
         model: modelProfile.id,
         modelCapabilities: modelProfile.capabilities,
         imagesUsed: 1,
@@ -267,6 +375,7 @@ export async function createChatResponse(input = {}, {
     searchQuery: requestedSearchQuery,
     agentId,
     intent: intent.type,
+    intentFunnel,
     visionAnalysis
   });
   const searchQuery = research.searchQuery || requestedSearchQuery;
@@ -280,7 +389,8 @@ export async function createChatResponse(input = {}, {
     usedAgents,
     modelProfile,
     images: [],
-    visionAnalysis
+    visionAnalysis,
+    intentFunnel
   });
 
   let modelResult;
@@ -298,6 +408,7 @@ export async function createChatResponse(input = {}, {
     status: 'completed',
     model: modelProfile.id,
     intent: intent.type,
+    intentFunnel,
     agentId,
     confidence: check.confidence,
     needResearch: check.needResearch,

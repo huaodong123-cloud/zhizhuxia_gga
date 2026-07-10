@@ -14,6 +14,85 @@ test('rejects chat without an api key', async () => {
   assert.deepEqual(response.errors, ['API key is required']);
 });
 
+test('three-layer intent funnel routes screenshot build questions through vision research answer', async () => {
+  let receivedResearchInput = null;
+
+  const response = await createChatResponse({
+    apiKey: 'sk-test',
+    agentId: 'chief',
+    message: 'use this screenshot to optimize my gear build',
+    gameName: 'Example RPG',
+    screenshot: {
+      mediaType: 'image/png',
+      data: 'iVBORw0KGgo='
+    }
+  }, {
+    visionClient: async () => ({
+      summary: 'The screenshot shows a character equipment page with mixed defensive gear.',
+      observations: ['equipment page', 'mixed defensive gear']
+    }),
+    researchClient: async (input) => {
+      receivedResearchInput = input;
+      return {
+        checkedSources: ['bilibili', 'xiaoheihe'],
+        searchQuery: 'Example RPG gear build defensive equipment',
+        sources: [],
+        failures: []
+      };
+    },
+    modelClient: async () => ({
+      answer: 'Prioritize a coherent gear build before upgrading scattered pieces.',
+      usage: { total_tokens: 18 }
+    })
+  });
+
+  assert.equal(response.status, 'completed');
+  assert.equal(response.intent, 'screenshot_question');
+  assert.equal(response.intentFunnel.inputType, 'screenshot_question');
+  assert.equal(response.intentFunnel.taskType, 'build');
+  assert.equal(response.intentFunnel.executionType, 'vision_research_answer');
+  assert.equal(response.intentFunnel.recommendedAgentId, 'build');
+  assert.deepEqual(response.intentFunnel.layers.map((layer) => layer.layer), ['input', 'task', 'execution']);
+  assert.deepEqual(response.workflowStages, ['intent', 'vision', 'research', 'answer']);
+  assert.equal(receivedResearchInput.intentFunnel.taskType, 'build');
+  assert.equal(response.usedAgents.includes('build'), true);
+});
+
+test('three-layer intent funnel routes text farming questions through route research answer', async () => {
+  let receivedResearchInput = null;
+
+  const response = await createChatResponse({
+    apiKey: 'sk-test',
+    agentId: 'chief',
+    message: 'best farming route for daily materials',
+    gameName: 'Example RPG'
+  }, {
+    researchClient: async (input) => {
+      receivedResearchInput = input;
+      return {
+        checkedSources: ['bilibili', 'xiaoheihe'],
+        searchQuery: 'Example RPG daily materials farming route',
+        sources: [],
+        failures: []
+      };
+    },
+    modelClient: async () => ({
+      answer: 'Start with the daily material route, then spend resin on bottlenecks.',
+      usage: { total_tokens: 16 }
+    })
+  });
+
+  assert.equal(response.status, 'completed');
+  assert.equal(response.intent, 'text_question');
+  assert.equal(response.intentFunnel.inputType, 'text_question');
+  assert.equal(response.intentFunnel.taskType, 'route');
+  assert.equal(response.intentFunnel.executionType, 'research_answer');
+  assert.equal(response.intentFunnel.recommendedAgentId, 'route');
+  assert.deepEqual(response.workflowStages, ['intent', 'research', 'answer']);
+  assert.equal(receivedResearchInput.intentFunnel.taskType, 'route');
+  assert.equal(response.usedAgents.includes('route'), true);
+});
+
 test('ranking intent in chat calls rank tool instead of normal chat model', async () => {
   let modelCalled = false;
   let receivedRankInput = null;
