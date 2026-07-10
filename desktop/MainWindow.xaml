@@ -193,11 +193,12 @@
       <Border x:Name="HeaderBar"
               Grid.Row="0"
               Background="Transparent"
+              Margin="14,10,14,0"
               BorderBrush="{StaticResource LineBrush}"
-              BorderThickness="0,0,0,1"
-              CornerRadius="18,18,0,0"
+              BorderThickness="1"
+              CornerRadius="16"
               MouseLeftButtonDown="Header_MouseLeftButtonDown">
-        <Grid Margin="16,0">
+        <Grid Margin="14,0">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />

@@ -17,6 +17,7 @@ var tests = new List<(string Name, Func<Task> Run)>
     ("MainWindow keeps settings out of the in-game panel", MainWindowKeepsSettingsOutOfInGamePanel),
     ("MainWindow starts directly in chat without a login gate", MainWindowStartsDirectlyInChatWithoutLoginGate),
     ("MainWindow follows the HUD prototype visual direction", MainWindowFollowsHudPrototypeVisualDirection),
+    ("MainWindow uses a rounded rectangle top bar", MainWindowUsesRoundedRectangleTopBar),
     ("MainWindow uses icon-only composer actions", MainWindowUsesIconOnlyComposerActions),
     ("MainWindow uses frameless icons, a narrow composer, hollow middle, and configurable solid bubbles", MainWindowUsesFramelessComposerAndSolidConfigurableBubbles),
     ("MainWindow fixes close behavior, unclipped icons, hollow shell, solid bubbles, and full composer", MainWindowFixesReportedHudIssues),
@@ -282,6 +283,20 @@ static Task MainWindowFollowsHudPrototypeVisualDirection()
     Assert(xaml.Contains("CornerRadius=\"16\"", StringComparison.Ordinal), "HUD composer rounded shell missing");
     Assert(code.Contains("CreateBubbleBrush", StringComparison.Ordinal), "user and assistant messages should use configurable solid bubble fill");
     Assert(code.Contains("MediaColor.FromArgb(72, 5, 8, 12)", StringComparison.Ordinal), "source cards should use translucent HUD fill");
+
+    return Task.CompletedTask;
+}
+
+static Task MainWindowUsesRoundedRectangleTopBar()
+{
+    var xaml = File.ReadAllText(Path.Combine("desktop", "MainWindow.xaml"));
+
+    Assert(xaml.Contains("x:Name=\"HeaderBar\"", StringComparison.Ordinal), "header bar should be named");
+    Assert(xaml.Contains("Margin=\"14,10,14,0\"", StringComparison.Ordinal), "header bar should float as a rounded rectangle with side margins");
+    Assert(xaml.Contains("CornerRadius=\"16\"", StringComparison.Ordinal), "header bar should use full rounded corners");
+    Assert(xaml.Contains("BorderThickness=\"1\"", StringComparison.Ordinal), "header bar should have a complete subtle border");
+    Assert(!xaml.Contains("CornerRadius=\"18,18,0,0\"", StringComparison.Ordinal), "header bar should no longer be a top-attached strip");
+    Assert(!xaml.Contains("BorderThickness=\"0,0,0,1\"", StringComparison.Ordinal), "header bar should no longer be just a bottom divider");
 
     return Task.CompletedTask;
 }
