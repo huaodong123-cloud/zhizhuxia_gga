@@ -1,6 +1,9 @@
 using System.ComponentModel;
+using System.Text;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -364,12 +367,7 @@ public partial class MainWindow : Window
     private void AddAssistantResponse(ChatResponse response)
     {
         var panel = new StackPanel();
-        panel.Children.Add(new TextBlock
-        {
-            Text = response.Answer,
-            LineHeight = 21,
-            TextWrapping = TextWrapping.Wrap
-        });
+        AddMarkdownText(panel, response.Answer);
 
         if (response.Sources.Count > 0)
         {
@@ -393,6 +391,144 @@ public partial class MainWindow : Window
         }
 
         AddMessageContainer(GetAgentLabel(response.AgentId), panel, isUser: false);
+    }
+
+    private void AddMarkdownText(StackPanel panel, string markdown)
+    {
+        var lines = markdown.Replace("\r\n", "\n").Split('\n');
+        var codeBlock = new StringBuilder();
+        var inCodeBlock = false;
+
+        foreach (var rawLine in lines)
+        {
+            var line = rawLine.TrimEnd();
+            if (line.TrimStart().StartsWith("```", StringComparison.Ordinal))
+            {
+                if (inCodeBlock)
+                {
+                    panel.Children.Add(CreateCodeBlock(codeBlock.ToString().TrimEnd()));
+                    codeBlock.Clear();
+                    inCodeBlock = false;
+                }
+                else
+                {
+                    inCodeBlock = true;
+                }
+                continue;
+            }
+
+            if (inCodeBlock)
+            {
+                codeBlock.AppendLine(line);
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                panel.Children.Add(new Border { Height = 6 });
+                continue;
+            }
+
+            panel.Children.Add(CreateMarkdownLine(line));
+        }
+
+        if (inCodeBlock && codeBlock.Length > 0)
+        {
+            panel.Children.Add(CreateCodeBlock(codeBlock.ToString().TrimEnd()));
+        }
+    }
+
+    private UIElement CreateMarkdownLine(string line)
+    {
+        var headingLevel = line.TakeWhile(character => character == '#').Count();
+        if (headingLevel is >= 1 and <= 3 && line.Length > headingLevel && line[headingLevel] == ' ')
+        {
+            var heading = new TextBlock
+            {
+                FontWeight = FontWeights.Bold,
+                FontSize = headingLevel == 1 ? 16 : 14,
+                LineHeight = 22,
+                Margin = new Thickness(0, 2, 0, 4),
+                TextWrapping = TextWrapping.Wrap
+            };
+            AddMarkdownInlineText(heading.Inlines, line[(headingLevel + 1)..]);
+            return heading;
+        }
+
+        var bulletMatch = Regex.Match(line, @"^\s*[-*]\s+(.+)$");
+        var numberedMatch = Regex.Match(line, @"^\s*(\d+)\.\s+(.+)$");
+        var textBlock = new TextBlock
+        {
+            LineHeight = 21,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 4)
+        };
+
+        if (bulletMatch.Success)
+        {
+            textBlock.Inlines.Add(new Run("• "));
+            AddMarkdownInlineText(textBlock.Inlines, bulletMatch.Groups[1].Value);
+            return textBlock;
+        }
+
+        if (numberedMatch.Success)
+        {
+            textBlock.Inlines.Add(new Run($"{numberedMatch.Groups[1].Value}. "));
+            AddMarkdownInlineText(textBlock.Inlines, numberedMatch.Groups[2].Value);
+            return textBlock;
+        }
+
+        AddMarkdownInlineText(textBlock.Inlines, line);
+        return textBlock;
+    }
+
+    private Border CreateCodeBlock(string code)
+    {
+        return new Border
+        {
+            Child = new TextBlock
+            {
+                Text = code,
+                FontFamily = new System.Windows.Media.FontFamily("Cascadia Mono, Consolas"),
+                FontSize = 12,
+                LineHeight = 18,
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = FindBrush("TextBrush")
+            },
+            Padding = new Thickness(10),
+            Margin = new Thickness(0, 4, 0, 8),
+            Background = new SolidColorBrush(MediaColor.FromArgb(210, 8, 10, 14)),
+            CornerRadius = new CornerRadius(8)
+        };
+    }
+
+    private void AddMarkdownInlineText(InlineCollection inlines, string text)
+    {
+        var remaining = text;
+        while (remaining.Length > 0)
+        {
+            var start = remaining.IndexOf("**", StringComparison.Ordinal);
+            if (start < 0)
+            {
+                inlines.Add(new Run(remaining));
+                return;
+            }
+
+            if (start > 0)
+            {
+                inlines.Add(new Run(remaining[..start]));
+            }
+
+            var end = remaining.IndexOf("**", start + 2, StringComparison.Ordinal);
+            if (end < 0)
+            {
+                inlines.Add(new Run(remaining[start..]));
+                return;
+            }
+
+            inlines.Add(new Run(remaining[(start + 2)..end]) { FontWeight = FontWeights.Bold });
+            remaining = remaining[(end + 2)..];
+        }
     }
 
     private Border CreateSourceCard(SourceCard source)

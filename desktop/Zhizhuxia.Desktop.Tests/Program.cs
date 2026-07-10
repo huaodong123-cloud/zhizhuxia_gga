@@ -19,7 +19,9 @@ var tests = new List<(string Name, Func<Task> Run)>
     ("MainWindow starts with an empty chat stream", MainWindowStartsWithEmptyChatStream),
     ("MainWindow follows the HUD prototype visual direction", MainWindowFollowsHudPrototypeVisualDirection),
     ("MainWindow uses a rounded rectangle top bar", MainWindowUsesRoundedRectangleTopBar),
+    ("MainWindow renders assistant replies as markdown", MainWindowRendersAssistantRepliesAsMarkdown),
     ("MainWindow uses icon-only composer actions", MainWindowUsesIconOnlyComposerActions),
+    ("MainWindow tightens composer input spacing", MainWindowTightensComposerInputSpacing),
     ("MainWindow uses frameless icons, a narrow composer, hollow middle, and configurable solid bubbles", MainWindowUsesFramelessComposerAndSolidConfigurableBubbles),
     ("MainWindow fixes close behavior, unclipped icons, hollow shell, solid bubbles, and full composer", MainWindowFixesReportedHudIssues),
     ("SettingsWindow contains tray configuration fields", SettingsWindowContainsTrayConfigurationFields),
@@ -313,6 +315,19 @@ static Task MainWindowUsesRoundedRectangleTopBar()
     return Task.CompletedTask;
 }
 
+static Task MainWindowRendersAssistantRepliesAsMarkdown()
+{
+    var code = File.ReadAllText(Path.Combine("desktop", "MainWindow.xaml.cs"));
+
+    Assert(code.Contains("AddMarkdownText(panel, response.Answer)", StringComparison.Ordinal), "assistant answer should be rendered through markdown blocks");
+    Assert(code.Contains("AddMarkdownInlineText", StringComparison.Ordinal), "inline markdown renderer missing");
+    Assert(code.Contains("InlineCollection", StringComparison.Ordinal), "markdown renderer should use WPF inline runs");
+    Assert(code.Contains("FontWeights.Bold", StringComparison.Ordinal), "markdown renderer should support bold text");
+    Assert(!code.Contains("Text = response.Answer", StringComparison.Ordinal), "assistant answer should not be displayed as plain text");
+
+    return Task.CompletedTask;
+}
+
 static Task MainWindowUsesIconOnlyComposerActions()
 {
     var xaml = File.ReadAllText(Path.Combine("desktop", "MainWindow.xaml"));
@@ -323,6 +338,19 @@ static Task MainWindowUsesIconOnlyComposerActions()
     Assert(xaml.Contains("x:Name=\"SendIcon\"", StringComparison.Ordinal), "send icon path missing");
     Assert(xaml.Contains("ToolTip=\"区域截图\"", StringComparison.Ordinal), "screenshot icon should have a tooltip");
     Assert(xaml.Contains("ToolTip=\"发送\"", StringComparison.Ordinal), "send icon should have a tooltip");
+
+    return Task.CompletedTask;
+}
+
+static Task MainWindowTightensComposerInputSpacing()
+{
+    var xaml = File.ReadAllText(Path.Combine("desktop", "MainWindow.xaml"));
+
+    Assert(xaml.Contains("x:Name=\"ComposerShell\"", StringComparison.Ordinal), "composer shell should exist");
+    Assert(xaml.Contains("Padding=\"6\"", StringComparison.Ordinal), "composer shell padding should be compact");
+    Assert(xaml.Contains("Margin=\"0,0,4,0\"", StringComparison.Ordinal), "screenshot icon should sit closer to the input");
+    Assert(xaml.Contains("Padding=\"6,8\"", StringComparison.Ordinal), "message input should have compact left padding");
+    Assert(xaml.Contains("Margin=\"4,0,0,0\"", StringComparison.Ordinal), "send icon should sit closer to the input");
 
     return Task.CompletedTask;
 }
