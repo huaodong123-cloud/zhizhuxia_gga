@@ -20,10 +20,14 @@ var tests = new List<(string Name, Func<Task> Run)>
     ("MainWindow follows the HUD prototype visual direction", MainWindowFollowsHudPrototypeVisualDirection),
     ("MainWindow uses a rounded rectangle top bar", MainWindowUsesRoundedRectangleTopBar),
     ("MainWindow renders assistant replies as markdown", MainWindowRendersAssistantRepliesAsMarkdown),
+    ("MainWindow renders live map tool cards", MainWindowRendersLiveMapToolCards),
+    ("MainWindow uses borderless header icon controls", MainWindowUsesBorderlessHeaderIconControls),
     ("MainWindow uses icon-only composer actions", MainWindowUsesIconOnlyComposerActions),
     ("MainWindow tightens composer input spacing", MainWindowTightensComposerInputSpacing),
     ("MainWindow uses frameless icons, a narrow composer, hollow middle, and configurable solid bubbles", MainWindowUsesFramelessComposerAndSolidConfigurableBubbles),
     ("MainWindow fixes close behavior, unclipped icons, hollow shell, solid bubbles, and full composer", MainWindowFixesReportedHudIssues),
+    ("MainWindow uses one-line composer, shift enter send, game picker, and image preview", MainWindowUsesRequestedGameScreenshotAndComposerFlow),
+    ("MainWindow uses Home as the shortcut enable switch", MainWindowUsesHomeAsShortcutEnableSwitch),
     ("SettingsWindow contains tray configuration fields", SettingsWindowContainsTrayConfigurationFields),
     ("SettingsWindow exposes visual settings controls that MainWindow applies", SettingsWindowExposesAppliedVisualSettings),
     ("SettingsWindow is modern frameless and local settings persist with API key cache", SettingsWindowIsFramelessAndLocalSettingsPersistWithApiKeyCache),
@@ -114,6 +118,16 @@ static async Task ChatApiClientSurfacesResponseFields()
               "freshness": "likely-current"
             }
           ],
+          "toolCards": [
+            {
+              "source": "palworld.gg",
+              "title": "Palworld Interactive Map",
+              "url": "https://palworld.gg/map",
+              "summary": "查看矿石、帕鲁和传送点。",
+              "freshness": "live-map",
+              "layers": ["矿石", "帕鲁", "传送点"]
+            }
+          ],
           "answer": "Save burst for shield.",
           "harness": { "ok": false, "warnings": ["verify patch"] }
         }
@@ -130,6 +144,8 @@ static async Task ChatApiClientSurfacesResponseFields()
     Assert(response.AgentId == "combat", "agent id not mapped");
     Assert(response.Confidence == "medium", "confidence not mapped");
     Assert(response.Sources.Count == 1, "sources not mapped");
+    Assert(response.ToolCards.Count == 1, "tool cards not mapped");
+    Assert(response.ToolCards[0].Layers.Contains("矿石"), "tool card layers not mapped");
     Assert(response.Harness.Warnings.Count == 1, "warnings not mapped");
     Assert(response.Answer.Contains("shield", StringComparison.OrdinalIgnoreCase), "answer not mapped");
 }
@@ -342,14 +358,45 @@ static Task MainWindowUsesIconOnlyComposerActions()
     return Task.CompletedTask;
 }
 
+static Task MainWindowUsesBorderlessHeaderIconControls()
+{
+    var xaml = File.ReadAllText(Path.Combine("desktop", "MainWindow.xaml"));
+
+    Assert(!xaml.Contains("Content=\"隐藏\"", StringComparison.Ordinal), "hide control should not use a text button");
+    Assert(!xaml.Contains("Content=\"×\"", StringComparison.Ordinal), "close control should not use a text button");
+    Assert(xaml.Contains("x:Key=\"HeaderIconButtonStyle\"", StringComparison.Ordinal), "header icon button style missing");
+    Assert(xaml.Contains("x:Name=\"HideButton\"", StringComparison.Ordinal), "hide icon button should be named");
+    Assert(xaml.Contains("x:Name=\"CloseButton\"", StringComparison.Ordinal), "close icon button should be named");
+    Assert(xaml.Contains("x:Name=\"HideIcon\"", StringComparison.Ordinal), "hide icon path missing");
+    Assert(xaml.Contains("x:Name=\"CloseIcon\"", StringComparison.Ordinal), "close icon path missing");
+    Assert(xaml.Contains("ToolTip=\"隐藏\"", StringComparison.Ordinal), "hide icon should keep a tooltip");
+    Assert(xaml.Contains("ToolTip=\"关闭\"", StringComparison.Ordinal), "close icon should keep a tooltip");
+
+    return Task.CompletedTask;
+}
+
+static Task MainWindowRendersLiveMapToolCards()
+{
+    var code = File.ReadAllText(Path.Combine("desktop", "MainWindow.xaml.cs"));
+    var clientCode = File.ReadAllText(Path.Combine("desktop", "Services", "ChatApiClient.cs"));
+
+    Assert(clientCode.Contains("List<ToolCard> ToolCards", StringComparison.Ordinal), "chat response should expose tool cards");
+    Assert(clientCode.Contains("public sealed record ToolCard", StringComparison.Ordinal), "tool card model missing");
+    Assert(code.Contains("response.ToolCards.Count > 0", StringComparison.Ordinal), "assistant response should render tool cards");
+    Assert(code.Contains("CreateToolCard", StringComparison.Ordinal), "tool card renderer missing");
+    Assert(code.Contains("地图工具", StringComparison.Ordinal), "tool card section label missing");
+
+    return Task.CompletedTask;
+}
+
 static Task MainWindowTightensComposerInputSpacing()
 {
     var xaml = File.ReadAllText(Path.Combine("desktop", "MainWindow.xaml"));
 
     Assert(xaml.Contains("x:Name=\"ComposerShell\"", StringComparison.Ordinal), "composer shell should exist");
-    Assert(xaml.Contains("Padding=\"6\"", StringComparison.Ordinal), "composer shell padding should be compact");
+    Assert(xaml.Contains("Padding=\"4\"", StringComparison.Ordinal), "composer shell padding should be compact");
     Assert(xaml.Contains("Margin=\"0,0,4,0\"", StringComparison.Ordinal), "screenshot icon should sit closer to the input");
-    Assert(xaml.Contains("Padding=\"6,8\"", StringComparison.Ordinal), "message input should have compact left padding");
+    Assert(xaml.Contains("Padding=\"7,0\"", StringComparison.Ordinal), "message input should have vertically centered one-line padding");
     Assert(xaml.Contains("Margin=\"4,0,0,0\"", StringComparison.Ordinal), "send icon should sit closer to the input");
 
     return Task.CompletedTask;
@@ -388,11 +435,32 @@ static Task MainWindowFixesReportedHudIssues()
     Assert(!xaml.Contains("MaxWidth=\"320\"", StringComparison.Ordinal), "composer should be restored to full width");
     Assert(xaml.Contains("x:Name=\"MessageBox\"", StringComparison.Ordinal), "message box missing");
     Assert(xaml.Contains("Background=\"#0B0B0B\"", StringComparison.Ordinal), "message input should be solid black");
-    Assert(xaml.Contains("MaxHeight=\"120\"", StringComparison.Ordinal), "message input should scroll when content grows");
+    Assert(xaml.Contains("Height=\"30\"", StringComparison.Ordinal), "message input should stay one-line high");
+    Assert(xaml.Contains("VerticalContentAlignment=\"Center\"", StringComparison.Ordinal), "message caret should be vertically centered");
     Assert(xaml.Contains("TargetType=\"ScrollBar\"", StringComparison.Ordinal), "thin black scrollbar style missing");
     Assert(code.Contains("_bubbleOpacityPercent = 100", StringComparison.Ordinal), "chat bubbles should default to solid");
     Assert(code.Contains("MessageBoxButton.YesNoCancel", StringComparison.Ordinal), "close should ask hide or exit");
     Assert(code.Contains("_forceExit", StringComparison.Ordinal), "tray exit should bypass close prompt");
+
+    return Task.CompletedTask;
+}
+
+static Task MainWindowUsesRequestedGameScreenshotAndComposerFlow()
+{
+    var xaml = File.ReadAllText(Path.Combine("desktop", "MainWindow.xaml"));
+    var code = File.ReadAllText(Path.Combine("desktop", "MainWindow.xaml.cs"));
+
+    Assert(xaml.Contains("x:Name=\"GameComboBox\"", StringComparison.Ordinal), "game should be selected from a combo box");
+    Assert(xaml.Contains("Tag=\"palworld\"", StringComparison.Ordinal), "Palworld game id should be available");
+    Assert(!xaml.Contains("x:Name=\"GameNameBox\"", StringComparison.Ordinal), "free-form game textbox should be removed");
+    Assert(xaml.Contains("x:Name=\"ScreenshotPreviewImage\"", StringComparison.Ordinal), "screenshot preview image should be shown above input");
+    Assert(xaml.Contains("Height=\"30\"", StringComparison.Ordinal), "message input should be exactly one text line high");
+    Assert(xaml.Contains("TextWrapping=\"NoWrap\"", StringComparison.Ordinal), "one-line input should not wrap into a taller box");
+    Assert(xaml.Contains("AcceptsReturn=\"False\"", StringComparison.Ordinal), "message input should remain visually single-line");
+    Assert(code.Contains("Keyboard.Modifiers == ModifierKeys.None", StringComparison.Ordinal), "Enter should send from the one-line composer");
+    Assert(code.Contains("Keyboard.Modifiers == ModifierKeys.Shift", StringComparison.Ordinal), "Shift+Enter should send");
+    Assert(code.Contains("GetSelectedGameName()", StringComparison.Ordinal), "selected game should be read through a helper");
+    Assert(code.Contains("CreateScreenshotPreviewImage", StringComparison.Ordinal), "screenshot image preview should be rendered from base64");
 
     return Task.CompletedTask;
 }
@@ -410,6 +478,23 @@ static Task SettingsWindowContainsTrayConfigurationFields()
     Assert(xaml.Contains("图标透明度", StringComparison.Ordinal), "icon opacity setting missing");
     Assert(xaml.Contains("面板透明度", StringComparison.Ordinal), "panel opacity setting missing");
     Assert(xaml.Contains("气泡透明度", StringComparison.Ordinal), "bubble opacity setting missing");
+
+    return Task.CompletedTask;
+}
+
+static Task MainWindowUsesHomeAsShortcutEnableSwitch()
+{
+    var mainCode = File.ReadAllText(Path.Combine("desktop", "MainWindow.xaml.cs"));
+    var hotkeyCode = File.ReadAllText(Path.Combine("desktop", "Services", "HotkeyService.cs"));
+    var settingsXaml = File.ReadAllText(Path.Combine("desktop", "SettingsWindow.xaml"));
+
+    Assert(mainCode.Contains("_enableHotkeyService", StringComparison.Ordinal), "Home enable hotkey service missing");
+    Assert(mainCode.Contains("Register(handle, Key.Home, useModifiers: false)", StringComparison.Ordinal), "Home should be registered without Ctrl+Alt");
+    Assert(mainCode.Contains("_shortcutsEnabled", StringComparison.Ordinal), "shortcut enabled state missing");
+    Assert(mainCode.Contains("ToggleShortcutsEnabled", StringComparison.Ordinal), "shortcut toggle handler missing");
+    Assert(mainCode.Contains("if (!_shortcutsEnabled)", StringComparison.Ordinal), "show/hide and screenshot hotkeys should respect disabled state");
+    Assert(hotkeyCode.Contains("bool useModifiers = true", StringComparison.Ordinal), "hotkey service should support bare Home registration");
+    Assert(settingsXaml.Contains("Home", StringComparison.Ordinal), "settings should show Home enable/disable shortcut");
 
     return Task.CompletedTask;
 }

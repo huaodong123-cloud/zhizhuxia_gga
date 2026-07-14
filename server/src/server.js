@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { MODEL_ID, PORT } from './config.js';
 import { createChatResponse } from './chat.js';
 import { runResearchQuery } from './research.js';
-import { rankFromStrongToWeak } from './tools.js';
+import { getPalworldMapTool, rankFromStrongToWeak } from './tools.js';
 import { createGuideRun } from './workflow.js';
 
 export function resolveProjectRoot(moduleUrl) {
@@ -58,7 +58,8 @@ function sendStatic(response, urlPath) {
 export function createAppServer({
   chatHandler = createChatResponse,
   researchHandler = runResearchQuery,
-  rankToolHandler = rankFromStrongToWeak
+  rankToolHandler = rankFromStrongToWeak,
+  palworldMapToolHandler = getPalworldMapTool
 } = {}) {
   return createServer(async (request, response) => {
     const url = new URL(request.url, `http://${request.headers.host}`);
@@ -99,6 +100,17 @@ export function createAppServer({
       try {
         const input = await readJsonBody(request);
         const result = await rankToolHandler(input);
+        sendJson(response, result.status === 'failed' ? 400 : 200, result);
+      } catch (error) {
+        sendJson(response, 500, { status: 'failed', errors: [error.message] });
+      }
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/api/tools/palworld-map') {
+      try {
+        const input = await readJsonBody(request);
+        const result = await palworldMapToolHandler(input);
         sendJson(response, result.status === 'failed' ? 400 : 200, result);
       } catch (error) {
         sendJson(response, 500, { status: 'failed', errors: [error.message] });

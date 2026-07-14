@@ -1,6 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { rankFromStrongToWeak } from '../src/tools.js';
+import { getPalworldMapTool, rankFromStrongToWeak } from '../src/tools.js';
+
+test('palworld map tool returns live map cards for location queries', async () => {
+  const result = await getPalworldMapTool({
+    gameName: '幻兽帕鲁',
+    query: '金属矿和传送点实时地图'
+  });
+
+  assert.equal(result.status, 'completed');
+  assert.equal(result.tool, 'palworld-live-map');
+  assert.equal(result.gameId, 'palworld');
+  assert.equal(result.cards.length >= 2, true);
+  assert.equal(result.cards[0].source, 'palworld.gg');
+  assert.match(result.cards[0].url, /^https:\/\/palworld\.gg\/map/);
+  assert.equal(result.cards.some((card) => card.layers.includes('矿石')), true);
+  assert.equal(result.markdown.includes('实时地图'), true);
+});
 
 test('rank tool injects user api key into model client', async () => {
   let receivedApiKey = '';

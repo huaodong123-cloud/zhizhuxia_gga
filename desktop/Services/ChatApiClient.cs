@@ -61,6 +61,7 @@ public sealed record ChatResponse
     public ModelCapabilities ModelCapabilities { get; init; } = new();
     public List<string> UsedAgents { get; init; } = [];
     public List<SourceCard> Sources { get; init; } = [];
+    public List<ToolCard> ToolCards { get; init; } = [];
     public string Answer { get; init; } = "";
     public HarnessReport Harness { get; init; } = new();
 }
@@ -80,6 +81,16 @@ public sealed record SourceCard
     public string Url { get; init; } = "";
     public string Summary { get; init; } = "";
     public string Freshness { get; init; } = "";
+}
+
+public sealed record ToolCard
+{
+    public string Source { get; init; } = "";
+    public string Title { get; init; } = "";
+    public string Url { get; init; } = "";
+    public string Summary { get; init; } = "";
+    public string Freshness { get; init; } = "";
+    public List<string> Layers { get; init; } = [];
 }
 
 public sealed record HarnessReport

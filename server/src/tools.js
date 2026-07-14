@@ -22,6 +22,79 @@ function safeText(value) {
   return String(value ?? '').trim();
 }
 
+function detectPalworldMapLayers(query = '') {
+  const text = String(query || '').toLowerCase();
+  const layers = [];
+  const checks = [
+    { layer: '矿石', pattern: /ore|metal|coal|sulfur|quartz|矿|金属|煤|硫磺|石英/u },
+    { layer: '帕鲁', pattern: /pal|spawn|刷新|帕鲁|宠物/u },
+    { layer: '传送点', pattern: /fast travel|teleport|waypoint|传送|据点/u },
+    { layer: '地下城', pattern: /dungeon|cave|地下城|洞窟/u },
+    { layer: '宝箱', pattern: /chest|treasure|宝箱|宝藏/u },
+    { layer: '首领', pattern: /boss|alpha|首领|boss/u },
+    { layer: '技能果实', pattern: /skill fruit|fruit|技能果实|果实/u }
+  ];
+
+  for (const check of checks) {
+    if (check.pattern.test(text)) {
+      layers.push(check.layer);
+    }
+  }
+
+  return layers.length ? layers : ['帕鲁', '矿石', '传送点'];
+}
+
+function isPalworldGame(gameName = '') {
+  return /palworld|幻兽帕鲁|帕鲁/i.test(String(gameName || ''));
+}
+
+export async function getPalworldMapTool(input = {}) {
+  const gameName = safeText(input.gameName);
+  const query = safeText(input.query || input.message);
+
+  if (gameName && !isPalworldGame(gameName)) {
+    return {
+      status: 'failed',
+      tool: 'palworld-live-map',
+      errors: ['当前实时地图工具只支持幻兽帕鲁。']
+    };
+  }
+
+  const layers = detectPalworldMapLayers(query);
+  const cards = [
+    {
+      source: 'palworld.gg',
+      title: 'Palworld Interactive Map',
+      url: 'https://palworld.gg/map',
+      summary: `打开后优先筛选：${layers.join('、')}。适合实时查看资源点、帕鲁刷新、传送点和探索目标。`,
+      freshness: 'live-map',
+      layers
+    },
+    {
+      source: 'palworld.th.gl',
+      title: 'Palworld Map',
+      url: 'https://palworld.th.gl/',
+      summary: '备用互动地图入口，适合和主地图交叉核对点位与分类。',
+      freshness: 'live-map',
+      layers
+    }
+  ];
+
+  return {
+    status: 'completed',
+    tool: 'palworld-live-map',
+    gameId: 'palworld',
+    query,
+    markdown: [
+      '## 幻兽帕鲁实时地图',
+      '',
+      `建议打开地图后筛选：${layers.join('、')}。`,
+      '第一版不在本地缓存坐标，避免地图更新后给出过期点位。'
+    ].join('\n'),
+    cards
+  };
+}
+
 export class RankFromStrongToWeakTool {
   static name = 'rank_from_strong_to_weak';
 

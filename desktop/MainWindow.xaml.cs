@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows;
@@ -7,6 +8,7 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Zhizhuxia.Desktop.Services;
 using FormsNotifyIcon = System.Windows.Forms.NotifyIcon;
 using MediaBrush = System.Windows.Media.Brush;
@@ -22,6 +24,7 @@ public partial class MainWindow : Window
     private readonly ChatApiClient _chatApiClient = new();
     private readonly HotkeyService _hotkeyService = new();
     private readonly HotkeyService _screenshotHotkeyService = new();
+    private readonly HotkeyService _enableHotkeyService = new();
     private readonly ScreenshotService _screenshotService = new();
     private readonly VisualSettingsStore _visualSettingsStore = new();
     private FormsNotifyIcon? _trayIcon;
@@ -32,6 +35,7 @@ public partial class MainWindow : Window
     private double _bubbleOpacityPercent = 100;
     private bool _topmostEnabled = true;
     private bool _clickThroughCollapsedOnly = false;
+    private bool _shortcutsEnabled = true;
     private bool _forceExit;
     private ChatImageInput? _pendingScreenshot;
     private Border? _pendingMessage;
@@ -73,6 +77,7 @@ public partial class MainWindow : Window
 
         _hotkeyService.Dispose();
         _screenshotHotkeyService.Dispose();
+        _enableHotkeyService.Dispose();
         _trayIcon?.Dispose();
         _serverService.Dispose();
     }
@@ -109,9 +114,11 @@ public partial class MainWindow : Window
         {
             var handle = new WindowInteropHelper(this).Handle;
             _hotkeyService.Register(handle, Key.F9);
-            _hotkeyService.Pressed += (_, _) => ToggleVisible();
+            _hotkeyService.Pressed += (_, _) => ToggleVisibleFromHotkey();
             _screenshotHotkeyService.Register(handle, Key.F10);
-            _screenshotHotkeyService.Pressed += async (_, _) => await CaptureScreenshotAsync();
+            _screenshotHotkeyService.Pressed += async (_, _) => await CaptureScreenshotFromHotkeyAsync();
+            _enableHotkeyService.Register(handle, Key.Home, useModifiers: false);
+            _enableHotkeyService.Pressed += (_, _) => ToggleShortcutsEnabled();
         }
         catch (Exception ex)
         {
@@ -139,6 +146,31 @@ public partial class MainWindow : Window
         Activate();
     }
 
+    private void ToggleVisibleFromHotkey()
+    {
+        if (!_shortcutsEnabled)
+        {
+            return;
+        }
+
+        ToggleVisible();
+    }
+
+    private void ToggleShortcutsEnabled()
+    {
+        _shortcutsEnabled = !_shortcutsEnabled;
+    }
+
+    private async Task CaptureScreenshotFromHotkeyAsync()
+    {
+        if (!_shortcutsEnabled)
+        {
+            return;
+        }
+
+        await CaptureScreenshotAsync();
+    }
+
     private void Header_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (e.ButtonState == MouseButtonState.Pressed)
@@ -154,7 +186,8 @@ public partial class MainWindow : Window
 
     private async void MessageBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
-        if (e.Key == Key.Enter && Keyboard.Modifiers != ModifierKeys.Shift)
+        if (e.Key == Key.Enter
+            && (Keyboard.Modifiers == ModifierKeys.None || Keyboard.Modifiers == ModifierKeys.Shift))
         {
             e.Handled = true;
             await SendMessageAsync();
@@ -185,7 +218,7 @@ public partial class MainWindow : Window
             var response = await _chatApiClient.SendAsync(new ChatRequest(
                 _apiKey,
                 GetSelectedAgentId(),
-                GameNameBox.Text.Trim(),
+                GetSelectedGameName(),
                 message,
                 GetSelectedModelId(),
                 Screenshot: _pendingScreenshot));
@@ -206,6 +239,16 @@ public partial class MainWindow : Window
         return AgentComboBox.SelectedItem is ComboBoxItem item && item.Tag is string tag
             ? tag
             : "chief";
+    }
+
+    private string GetSelectedGameName()
+    {
+        if (GameComboBox.SelectedItem is ComboBoxItem item)
+        {
+            return item.Content?.ToString() ?? "";
+        }
+
+        return "";
     }
 
     private string GetSelectedModelId()
@@ -230,6 +273,7 @@ public partial class MainWindow : Window
             {
                 _pendingScreenshot = _screenshotService.CaptureRegion(region);
                 ScreenshotPreviewText.Text = $"已添加截图 · {Math.Round(region.Width)}×{Math.Round(region.Height)}";
+                ScreenshotPreviewImage.Source = CreateScreenshotPreviewImage(_pendingScreenshot);
                 ScreenshotPreviewPanel.Visibility = Visibility.Visible;
             }
         }
@@ -360,8 +404,20 @@ public partial class MainWindow : Window
     private void ClearPendingScreenshot()
     {
         _pendingScreenshot = null;
+        ScreenshotPreviewImage.Source = null;
         ScreenshotPreviewPanel.Visibility = Visibility.Collapsed;
         ScreenshotPreviewText.Text = "已添加截图";
+    }
+
+    private static BitmapImage CreateScreenshotPreviewImage(ChatImageInput screenshot)
+    {
+        var image = new BitmapImage();
+        image.BeginInit();
+        image.CacheOption = BitmapCacheOption.OnLoad;
+        image.StreamSource = new MemoryStream(Convert.FromBase64String(screenshot.Data));
+        image.EndInit();
+        image.Freeze();
+        return image;
     }
 
     private void AddAssistantResponse(ChatResponse response)
@@ -382,6 +438,22 @@ public partial class MainWindow : Window
             foreach (var source in response.Sources)
             {
                 panel.Children.Add(CreateSourceCard(source));
+            }
+        }
+
+        if (response.ToolCards.Count > 0)
+        {
+            panel.Children.Add(new TextBlock
+            {
+                Text = "地图工具",
+                Foreground = FindBrush("MutedBrush"),
+                FontSize = 12,
+                Margin = new Thickness(0, 12, 0, 6)
+            });
+
+            foreach (var toolCard in response.ToolCards)
+            {
+                panel.Children.Add(CreateToolCard(toolCard));
             }
         }
 
@@ -560,6 +632,48 @@ public partial class MainWindow : Window
             Margin = new Thickness(0, 0, 0, 8),
             Background = new SolidColorBrush(MediaColor.FromArgb(72, 5, 8, 12)),
             BorderBrush = FindBrush("LineBrush"),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(12)
+        };
+    }
+
+    private Border CreateToolCard(ToolCard toolCard)
+    {
+        var layers = toolCard.Layers.Count > 0 ? string.Join(" / ", toolCard.Layers) : "默认图层";
+        var stack = new StackPanel();
+        stack.Children.Add(new TextBlock
+        {
+            Text = $"{toolCard.Source} · {toolCard.Freshness}",
+            Foreground = FindBrush("AccentBrush"),
+            FontSize = 11
+        });
+        stack.Children.Add(new TextBlock
+        {
+            Text = toolCard.Title,
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 3, 0, 3)
+        });
+        stack.Children.Add(new TextBlock
+        {
+            Text = toolCard.Summary,
+            Foreground = FindBrush("MutedBrush"),
+            LineHeight = 18
+        });
+        stack.Children.Add(new TextBlock
+        {
+            Text = $"图层：{layers}",
+            Foreground = FindBrush("MutedBrush"),
+            FontSize = 11,
+            Margin = new Thickness(0, 5, 0, 0)
+        });
+
+        return new Border
+        {
+            Child = stack,
+            Padding = new Thickness(10),
+            Margin = new Thickness(0, 0, 0, 8),
+            Background = new SolidColorBrush(MediaColor.FromArgb(84, 6, 18, 16)),
+            BorderBrush = FindBrush("AccentBrush"),
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(12)
         };

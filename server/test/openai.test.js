@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { callZhipuVision } from '../src/zhipu.js';
 
-test('calls Zhipu GLM-5.2 chat completions with base64 screenshot input', async () => {
+test('calls Zhipu vision model with base64 screenshot input', async () => {
   let capturedUrl = '';
   let capturedOptions = {};
 
@@ -37,7 +37,7 @@ test('calls Zhipu GLM-5.2 chat completions with base64 screenshot input', async 
   assert.equal(capturedUrl, 'https://open.bigmodel.cn/api/paas/v4/chat/completions');
   assert.equal(capturedOptions.method, 'POST');
   assert.equal(capturedOptions.headers.authorization, 'Bearer sk-vision-input');
-  assert.equal(body.model, 'glm-5.2');
+  assert.equal(body.model, 'glm-4.1v-thinking-flash');
   assert.equal(content[0].type, 'text');
   assert.equal(content[0].text, '分析截图');
   assert.equal(content[1].type, 'image_url');

@@ -3,5 +3,7 @@ desktop/**/bin/
 desktop/**/obj/
 .idea/
 skill-staging/
+__pycache__/
+*.pyc
 dist/*
 !dist/zhizhuxia-demov0.01-concept-win.zip

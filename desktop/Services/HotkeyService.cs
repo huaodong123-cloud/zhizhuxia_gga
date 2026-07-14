@@ -17,15 +17,17 @@ public sealed class HotkeyService : IDisposable
 
     public event EventHandler? Pressed;
 
-    public void Register(nint windowHandle, Key key)
+    public void Register(nint windowHandle, Key key, bool useModifiers = true)
     {
         _source = HwndSource.FromHwnd(windowHandle);
         _source.AddHook(WndProc);
 
         var virtualKey = KeyInterop.VirtualKeyFromKey(key);
-        if (!RegisterHotKey(windowHandle, _id, ModControl | ModAlt, (uint)virtualKey))
+        var modifiers = useModifiers ? ModControl | ModAlt : 0;
+        if (!RegisterHotKey(windowHandle, _id, modifiers, (uint)virtualKey))
         {
-            throw new Win32Exception(Marshal.GetLastWin32Error(), $"无法注册快捷键 Ctrl+Alt+{key}。");
+            var label = useModifiers ? $"Ctrl+Alt+{key}" : key.ToString();
+            throw new Win32Exception(Marshal.GetLastWin32Error(), $"无法注册快捷键 {label}。");
         }
     }
 

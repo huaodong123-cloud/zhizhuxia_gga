@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createChatResponse } from '../src/chat.js';
+import { createChatResponse, resetSessionMemory } from '../src/chat.js';
 
 test('rejects chat without an api key', async () => {
   const response = await createChatResponse({
@@ -167,6 +167,61 @@ test('three-layer intent funnel routes text farming questions through route rese
   assert.deepEqual(response.workflowStages, ['intent', 'research', 'answer']);
   assert.equal(receivedResearchInput.intentFunnel.taskType, 'route');
   assert.equal(response.usedAgents.includes('route'), true);
+});
+
+test('palworld map questions attach live map tool cards before answering', async () => {
+  const calls = [];
+  let receivedMessages = [];
+
+  const response = await createChatResponse({
+    apiKey: 'sk-test',
+    agentId: 'chief',
+    message: '幻兽帕鲁金属矿位置打开实时地图看一下',
+    gameName: '幻兽帕鲁'
+  }, {
+    mapTool: async (input) => {
+      calls.push('map-tool');
+      assert.equal(input.gameName, '幻兽帕鲁');
+      assert.match(input.query, /金属矿/);
+      return {
+        status: 'completed',
+        tool: 'palworld-live-map',
+        gameId: 'palworld',
+        markdown: '已接入幻兽帕鲁实时地图。',
+        cards: [{
+          source: 'palworld.gg',
+          title: 'Palworld Interactive Map',
+          url: 'https://palworld.gg/map',
+          summary: '用于查看矿石、传送点和帕鲁刷新位置。',
+          freshness: 'live-map',
+          layers: ['矿石', '传送点', '帕鲁']
+        }]
+      };
+    },
+    researchClient: async () => {
+      calls.push('research');
+      return {
+        checkedSources: ['bilibili', 'xiaoheihe'],
+        searchQuery: '幻兽帕鲁 金属矿 实时地图',
+        sources: [],
+        failures: []
+      };
+    },
+    modelClient: async ({ messages }) => {
+      calls.push('answer');
+      receivedMessages = messages;
+      return {
+        answer: '可以先打开地图工具筛选矿石图层，再规划传送点路线。',
+        usage: { total_tokens: 18 }
+      };
+    }
+  });
+
+  assert.deepEqual(calls, ['map-tool', 'research', 'answer']);
+  assert.deepEqual(response.workflowStages, ['intent', 'map-tool', 'research', 'answer']);
+  assert.equal(response.toolCards.length, 1);
+  assert.equal(response.toolCards[0].source, 'palworld.gg');
+  assert.match(receivedMessages.find((message) => message.role === 'user').content, /Palworld Interactive Map/);
 });
 
 test('build agent workflow drives research focus and answer policy', async () => {

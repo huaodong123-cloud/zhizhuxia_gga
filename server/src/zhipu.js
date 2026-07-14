@@ -1,4 +1,4 @@
-import { ZHIPU_CHAT_URL, ZHIPU_VISION_MODEL } from './config.js';
+import { MODEL_ID, ZHIPU_CHAT_URL, ZHIPU_VISION_MODEL } from './config.js';
 
 function sanitizeErrorText(value) {
   return String(value || '')
@@ -64,7 +64,7 @@ export async function callZhipuVision({
 export async function callZhipuChat({
   apiKey,
   messages,
-  model = ZHIPU_VISION_MODEL,
+  model = MODEL_ID,
   tools,
   toolChoice,
   fetchImpl = globalThis.fetch

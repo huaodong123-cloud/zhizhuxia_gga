@@ -2,7 +2,7 @@ import { MODEL_ID } from './config.js';
 import { evaluateChatAnswer } from './harness.js';
 import { normalizeImageInputs, normalizeScreenshotInput, resolveModelProfile } from './models.js';
 import { runResearchQuery } from './research.js';
-import { rankFromStrongToWeak } from './tools.js';
+import { getPalworldMapTool, rankFromStrongToWeak } from './tools.js';
 import { callZhipuChat, callZhipuVision } from './zhipu.js';
 
 export const CHAT_AGENTS = [
@@ -17,6 +17,61 @@ export const CHAT_AGENTS = [
 
 const VALID_AGENT_IDS = new Set(CHAT_AGENTS.map((agent) => agent.id));
 const AGENT_LABELS = Object.fromEntries(CHAT_AGENTS.map((agent) => [agent.id, agent.name]));
+const SESSION_MEMORY_LIMIT = 60;
+const sessionMemory = [];
+
+export function resetSessionMemory() {
+  sessionMemory.length = 0;
+}
+
+function isResumeCommand(message = '') {
+  return /^\/resume(?:\s+.+)?$/i.test(String(message || '').trim());
+}
+
+function getResumeQuery(message = '') {
+  return String(message || '').trim().replace(/^\/resume/i, '').trim();
+}
+
+function memoryText(entry) {
+  return [entry.gameName, entry.message, entry.answer].filter(Boolean).join('\n').toLowerCase();
+}
+
+function scoreMemory(entry, query, gameName) {
+  const text = memoryText(entry);
+  const terms = String(query || '')
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
+  let score = gameName && entry.gameName === gameName ? 2 : 0;
+  for (const term of terms) {
+    if (text.includes(term)) score += 3;
+  }
+  if (!terms.length) score += 1;
+  return score;
+}
+
+function searchSessionMemory({ query, gameName }) {
+  return sessionMemory
+    .map((entry) => ({ entry, score: scoreMemory(entry, query, gameName) }))
+    .filter((item) => item.score > 0)
+    .sort((left, right) => right.score - left.score || right.entry.createdAt - left.entry.createdAt)
+    .slice(0, 3)
+    .map((item) => item.entry);
+}
+
+function rememberSession({ gameName, agentId, message, response }) {
+  if (!response?.answer || isResumeCommand(message)) return;
+  sessionMemory.push({
+    gameName,
+    agentId,
+    message,
+    answer: response.answer,
+    createdAt: Date.now()
+  });
+  while (sessionMemory.length > SESSION_MEMORY_LIMIT) {
+    sessionMemory.shift();
+  }
+}
 
 const AGENT_WORKFLOWS = {
   chief: {
@@ -236,6 +291,13 @@ function isMeaninglessMessage(message = '') {
   return false;
 }
 
+function shouldUsePalworldMapTool({ gameName = '', message = '' } = {}) {
+  const combined = `${gameName} ${message}`;
+  const isPalworld = /palworld|幻兽帕鲁|帕鲁/i.test(combined);
+  const asksMap = /map|location|where|coordinate|spawn|resource|ore|coal|sulfur|quartz|地图|位置|坐标|刷新|资源|矿|金属|煤|硫磺|石英|传送|宝箱|地下城|洞窟|首领/u.test(String(message || ''));
+  return isPalworld && asksMap;
+}
+
 export function identifyWorkflowIntent({ message = '', screenshot = null }) {
   if (!screenshot && isSmalltalkMessage(message)) {
     return {
@@ -362,12 +424,16 @@ function buildWorkflowSearchQuery({ gameName, message, visionAnalysis, workflow 
   ].filter(Boolean).join(' ').trim();
 }
 
-function buildMessages({ agentId, message, gameName, check, sources, failures, usedAgents, modelProfile, images, visionAnalysis, intentFunnel, agentWorkflow }) {
+function buildMessages({ agentId, message, gameName, check, sources, failures, usedAgents, modelProfile, images, visionAnalysis, intentFunnel, agentWorkflow, toolCards = [] }) {
   const sourceText = sources.length
     ? sources.map((source) => `- ${source.source}：${source.title}。${source.summary}`).join('\n')
     : '没有外部来源卡片。';
   const failureText = failures?.length ? failures.join('；') : '无';
+  const toolText = toolCards.length
+    ? toolCards.map((card) => `- ${card.source}: ${card.title}. ${card.summary} ${card.url}`).join('\n')
+    : '无';
   const userText = [
+    toolCards.length ? `地图工具卡：\n${toolText}` : '',
     `游戏：${gameName || '未提供'}`,
     `用户问题：${message}`,
     intentFunnel ? `意图漏斗：${intentFunnel.inputType} -> ${intentFunnel.taskType} -> ${intentFunnel.executionType}` : '',
@@ -418,7 +484,8 @@ export async function createChatResponse(input = {}, {
   modelClient = callZhipuChat,
   visionClient = callZhipuVision,
   researchClient = runResearchQuery,
-  rankTool = rankFromStrongToWeak
+  rankTool = rankFromStrongToWeak,
+  mapTool = getPalworldMapTool
 } = {}) {
   const apiKey = String(input.apiKey || '').trim();
   const visionApiKey = String(input.visionApiKey || '').trim();
@@ -455,6 +522,66 @@ export async function createChatResponse(input = {}, {
       modelCapabilities: modelProfile.capabilities,
       imagesUsed: screenshot ? 1 : 0,
       workflowStages: ['intent']
+    };
+  }
+
+  if (isResumeCommand(message)) {
+    const resumeQuery = getResumeQuery(message);
+    const matches = searchSessionMemory({ query: resumeQuery, gameName });
+    const answer = matches.length
+      ? [
+          `找到 ${matches.length} 条会话记忆：`,
+          ...matches.map((entry, index) => [
+            `${index + 1}. ${entry.gameName || '未指定游戏'} / ${entry.agentId}`,
+            `问题：${entry.message}`,
+            `结论：${entry.answer}`
+          ].join('\n'))
+        ].join('\n\n')
+      : `没有找到匹配“${resumeQuery || '最近会话'}”的会话记忆。`;
+
+    return {
+      status: 'completed',
+      model: modelProfile.id,
+      intent: 'resume',
+      intentFunnel: {
+        inputType: 'text_question',
+        taskType: 'resume',
+        executionType: 'memory',
+        recommendedAgentId: 'chief',
+        confidence: 'high',
+        layers: [
+          { layer: 'input', type: 'text_question', confidence: 'high', signals: ['slash-command'] },
+          { layer: 'task', type: 'resume', confidence: 'high', signals: ['session-memory'] },
+          { layer: 'execution', type: 'memory', confidence: 'high', signals: ['local-memory'] }
+        ]
+      },
+      agentId,
+      confidence: matches.length ? 'high' : 'low',
+      needResearch: false,
+      knowledgeCheck: {
+        confidence: matches.length ? 'high' : 'low',
+        needResearch: false,
+        reason: '通过 /resume 查找当前服务进程内的会话记忆。'
+      },
+      usedAgents: ['chief'],
+      sources: [],
+      toolCards: [],
+      researchFailures: [],
+      checkedSources: [],
+      searchQuery: resumeQuery,
+      visionAnalysis: null,
+      workflowStages: ['intent', 'memory'],
+      answer,
+      modelCapabilities: modelProfile.capabilities,
+      imagesUsed: 0,
+      provider: {
+        model: modelProfile.id,
+        usage: null
+      },
+      harness: {
+        ok: true,
+        warnings: []
+      }
     };
   }
 
@@ -498,6 +625,7 @@ export async function createChatResponse(input = {}, {
       },
       usedAgents: ['critic'],
       sources: [],
+      toolCards: [],
       researchFailures: [],
       answer: rankResult.markdown,
       provider: rankResult.provider || {
@@ -516,6 +644,7 @@ export async function createChatResponse(input = {}, {
       response
     });
 
+    rememberSession({ gameName, agentId, message, response });
     return response;
   }
 
@@ -569,6 +698,7 @@ export async function createChatResponse(input = {}, {
       knowledgeCheck: check,
       usedAgents,
       sources: [],
+      toolCards: [],
       researchFailures: [],
       checkedSources: [],
       searchQuery: '',
@@ -599,6 +729,7 @@ export async function createChatResponse(input = {}, {
   const usedAgents = agentId === 'chief' ? selectChiefSpecialists(message, intentFunnel) : [agentId];
   const workflowStages = ['intent'];
   let visionAnalysis = null;
+  let toolCards = [];
 
   if (screenshot) {
     workflowStages.push('vision');
@@ -623,6 +754,18 @@ export async function createChatResponse(input = {}, {
         imagesUsed: 1,
         workflowStages
       };
+    }
+  }
+
+  if (shouldUsePalworldMapTool({ gameName, message })) {
+    workflowStages.push('map-tool');
+    const mapResult = await mapTool({
+      gameName,
+      query: message,
+      intentFunnel
+    });
+    if (mapResult.status === 'completed' && Array.isArray(mapResult.cards)) {
+      toolCards = mapResult.cards;
     }
   }
 
@@ -652,7 +795,8 @@ export async function createChatResponse(input = {}, {
     images: [],
     visionAnalysis,
     intentFunnel,
-    agentWorkflow: activeWorkflow
+    agentWorkflow: activeWorkflow,
+    toolCards
   });
 
   let modelResult;
@@ -679,6 +823,7 @@ export async function createChatResponse(input = {}, {
     knowledgeCheck: check,
     usedAgents,
     sources: research.sources,
+    toolCards,
     researchFailures: research.failures,
     checkedSources: research.checkedSources || [],
     searchQuery,
@@ -700,5 +845,6 @@ export async function createChatResponse(input = {}, {
     response
   });
 
+  rememberSession({ gameName, agentId, message, response });
   return response;
 }

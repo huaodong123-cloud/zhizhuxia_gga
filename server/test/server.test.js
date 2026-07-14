@@ -133,3 +133,43 @@ test('handles rank tool requests', async () => {
     await new Promise((resolve) => server.close(resolve));
   }
 });
+
+test('handles palworld live map tool requests', async () => {
+  const server = createAppServer({
+    palworldMapToolHandler: async () => ({
+      status: 'completed',
+      tool: 'palworld-live-map',
+      gameId: 'palworld',
+      markdown: '已接入实时地图。',
+      cards: [{
+        source: 'palworld.gg',
+        title: 'Palworld Interactive Map',
+        url: 'https://palworld.gg/map',
+        summary: '查看矿石、帕鲁和传送点。',
+        freshness: 'live-map',
+        layers: ['矿石', '帕鲁', '传送点']
+      }]
+    })
+  });
+  await new Promise((resolve) => server.listen(0, resolve));
+  const { port } = server.address();
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/tools/palworld-map`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        gameName: '幻兽帕鲁',
+        query: '金属矿位置'
+      })
+    });
+    const payload = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(payload.status, 'completed');
+    assert.equal(payload.tool, 'palworld-live-map');
+    assert.equal(payload.cards[0].source, 'palworld.gg');
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
